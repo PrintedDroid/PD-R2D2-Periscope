@@ -9,6 +9,12 @@ class BottomLeds: public BaseLeds {
     void update(unsigned long currentTime) override;
     void setEffect(int effect) override;
 
+    // Override common effects to use hardware abstraction
+    void commonPulseAll();
+    void commonStrobe();
+    void commonSparkle(uint8_t threshold = LedConstants::RANDOM_THRESHOLD_HIGH);
+    void safeFillSolid(CRGB color);
+
   private:
     void simple();
     void scan();
