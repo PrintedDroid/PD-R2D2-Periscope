@@ -6,33 +6,22 @@
 class TopLeds: public BaseLeds {
   public:
     TopLeds(CRGB *leds, int numleds);
-    void update(unsigned long currentTime);
-    void setEffect(int effect);
-    void setColor(int color);
-    void setSpeed(int speed);
+    void update(unsigned long currentTime) override;
+    void setEffect(int effect) override;
 
   private:
     void leftrun();
     void leftright();
     void tocenter();
-    void sparkle();
     void comet();
     void chase();
-    void rainbow();
-    void pulse();
+    void pulseEffect();  // Renamed from pulse() to avoid conflict with BaseLeds::pulse variable
     void bounce();
     void fillFromCenter();
     void knightRider();
-    
-    unsigned long lastUpdate;
-    unsigned long effectChangeTime;
-    CRGB *leds;
-    int numleds;
-    int speed;
-    int idx;
-    int currentEffect;
-    int currentColor;
-    bool autoChange;
+
+    // Member variable for bounce and knightRider direction
+    int bounceDirection;
 };
 
 #endif

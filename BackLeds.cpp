@@ -2,56 +2,94 @@
 
 BackLeds::BackLeds(CRGB *leds, int numleds)
 {
-  this->lastUpdate = millis();
+  // Initialize base class members
   this->leds = leds;
   this->numleds = numleds;
-  this->speed = 500;
+  this->lastUpdate = millis();
+  this->effectChangeTime = millis();
+  this->speed = LedConstants::DEFAULT_SPEED_BACK;
   this->idx = 0;
+  this->pulse_speed = LedConstants::PULSE_SPEED_DEFAULT;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
   this->currentEffect = 0;
   this->currentColor = 0; // Red
+  this->autoChange = false;
+  this->alternatePhase = false;
+
+  // Validation
+  if (!validatePointers()) {
+    #ifdef DEBUG_MODE
+      Serial.println(F("ERROR: BackLeds - Invalid LED pointer"));
+    #endif
+  }
+
+  if (!validateNumLeds()) {
+    #ifdef DEBUG_MODE
+      Serial.print(F("WARNING: BackLeds - NumLEDs out of range: "));
+      Serial.println(numleds);
+    #endif
+  }
 }
 
 void BackLeds::setEffect(int effect) {
   this->currentEffect = effect;
-}
+  this->idx = 0;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
+  this->alternatePhase = false;
 
-void BackLeds::setColor(int color) {
-  if (color >= 0 && color <= 9) {
-    this->currentColor = color;
+  if (effect == 99) {
+    this->autoChange = true;
+    this->currentEffect = 0;
+  } else {
+    this->autoChange = false;
   }
-}
-
-void BackLeds::setSpeed(int speed) {
-  this->speed = speed;
 }
 
 void BackLeds::update(unsigned long currentTime)
 {
+  if (!validatePointers()) return;
+
   if ((currentTime - this->lastUpdate) < this->speed) return;
+
+  // Auto-change mode
+  if (this->autoChange && (currentTime - this->effectChangeTime) > LedConstants::AUTO_CHANGE_INTERVAL_BACK) {
+    this->currentEffect++;
+    this->idx = 0;
+    this->alternatePhase = false;
+    this->effectChangeTime = currentTime;
+
+    if (this->currentEffect >= LedConstants::MAX_EFFECT_BACK) {
+      this->currentEffect = 1; // Skip 0 (off) in auto mode
+    }
+  }
 
   switch(this->currentEffect) {
     case 0: // Off
-      fill_solid(this->leds, this->numleds, CRGB::Black);
+      safeFillSolid(CRGB::Black);
       break;
-      
+
     case 1: // Random Red/Blue (original)
       this->randomB();
       break;
-      
+
     case 2: // Random with selected color
       this->randomColored();
       break;
-      
+
     case 3: // All on with selected color
       this->allOn();
       break;
-      
+
     case 4: // Alternate between two colors
       this->alternateColors();
       break;
-      
+
     case 5: // Sparkle effect
-      this->sparkle();
+      commonSparkle(LedConstants::RANDOM_THRESHOLD_MEDIUM);
       break;
   }
 
@@ -59,50 +97,52 @@ void BackLeds::update(unsigned long currentTime)
 }
 
 void BackLeds::randomB() {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
   for(int i = 0; i < this->numleds; i++) {
-    int nr = random(0, 2);
-    if (nr) {
-      this->leds[i] = CRGB::Red;  
-    }
-    else {
-      this->leds[i] = CRGB::Blue;
+    if (isValidIndex(i)) {
+      int nr = random(0, 2);
+      if (nr) {
+        this->leds[i] = CRGB::Red;
+      }
+      else {
+        this->leds[i] = CRGB::Blue;
+      }
     }
   }
 }
 
 void BackLeds::randomColored() {
+  if (!validatePointers()) return;
+
   for(int i = 0; i < this->numleds; i++) {
-    if (random(0, 2)) {
-      this->leds[i] = colorMap[this->currentColor];
-    } else {
-      this->leds[i] = CRGB::Black;
+    if (isValidIndex(i)) {
+      if (random(0, 2)) {
+        this->leds[i] = getCurrentColor();
+      } else {
+        this->leds[i] = CRGB::Black;
+      }
     }
   }
 }
 
 void BackLeds::allOn() {
-  fill_solid(this->leds, this->numleds, colorMap[this->currentColor]);
+  safeFillSolid(getCurrentColor());
 }
 
 void BackLeds::alternateColors() {
-  static bool phase = false;
+  if (!validatePointers()) return;
+
   for(int i = 0; i < this->numleds; i++) {
-    if ((i % 2) == phase) {
-      this->leds[i] = colorMap[this->currentColor];
-    } else {
-      this->leds[i] = colorMap[(this->currentColor + 1) % 10];
+    if (isValidIndex(i)) {
+      if ((i % 2) == this->alternatePhase) {
+        this->leds[i] = getCurrentColor();
+      } else {
+        this->leds[i] = colorMap[(this->currentColor + 1) % LedConstants::COLOR_WRAP_MODULO];
+      }
     }
   }
-  phase = !phase;
-}
-
-void BackLeds::sparkle() {
-  fadeToBlackBy(this->leds, this->numleds, 50);
-  
-  if (random8() < 120) {
-    int pos = random(this->numleds);
-    this->leds[pos] = colorMap[this->currentColor];
-  }
+  this->alternatePhase = !this->alternatePhase;
 }

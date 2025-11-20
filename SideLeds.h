@@ -6,36 +6,16 @@
 class SideLeds: public BaseLeds {
   public:
     SideLeds(CRGB *leds, int numleds);
-    void update(unsigned long currentTime);
-    void setEffect(int effect);
-    void setColor(int color);
-    void setSpeed(int speed);
-  
+    void update(unsigned long currentTime) override;
+    void setEffect(int effect) override;
+
   private:
-    void pulse();
-    void strobe();
+    void pulseEffect();  // Renamed from pulse() to avoid conflict with BaseLeds::pulse variable
     void cw_run(int pt);
     void breathe();
-    void fire();
-    void sparkle();
-    void rainbow();
-    
-    unsigned long lastUpdate;
-    unsigned long effect_time;
-    CRGB *leds;
-    int numleds;
-    int speed;
-    int idx;
 
-    int pulse_offset;
-    bool strobe_ind;
-
-    int currentEffect;
-    int currentColor;
-    bool autoChange;
-    
-    // Fire effect variables
-    byte heat[9];
+    // Fire effect heat array - fixed size with MAX_LEDS_PER_STRIP for safety
+    byte heat[LedConstants::MAX_LEDS_PER_STRIP];
 };
-  
+
 #endif

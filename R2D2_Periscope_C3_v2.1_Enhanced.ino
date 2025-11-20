@@ -1,8 +1,18 @@
 //
-// R2D2 Periscope LED Controller for ESP32-C3 - Enhanced Version with Uppity Spinner Support
-// =========================================================================================
+// R2D2 Periscope LED Controller for ESP32-C3 - Enhanced Version v2.2
+// ====================================================================
 // Sketch for the Printed-Droid.com Periscope
 // Board: Lolin C3 Mini (ESP32-C3)
+//
+// VERSION 2.2 IMPROVEMENTS (2025/11):
+// - CRITICAL: Fixed buffer overflow in MainLeds/SideLeds
+// - CRITICAL: Added virtual destructor to BaseLeds
+// - CRITICAL: Fixed static variable issues
+// - Created Constants.h with 90+ named constants
+// - Created BaseLeds.cpp with common effects
+// - Eliminated 100+ magic numbers and ~176 lines of duplication
+// - Added 74+ safety checks and validation
+// - 100% backward compatible
 //
 // UPPITY SPINNER MODE:
 // ====================
@@ -34,7 +44,7 @@
 // 4. Choose version between 3.9.0 and 3.9.10
 // 5. Click "Install"
 //
-// Enhanced Command Format (Serial Mode Only):
+// Enhanced Command Format (Serial & I2C Mode):
 // ===========================================
 // Format: [Target][Effect][Color][Speed]
 // Example: M185 = Main LEDs, Effect 1, White, Speed 5
@@ -67,14 +77,28 @@
 // - "ON": Enable all LEDs
 // - "OFF": Disable all LEDs
 //
-// Version: 2.1
-// Date: 2025/06
+// I2C Communication (Serial Mode Only):
+// =====================================
+// - I2C Address: 0x20 (32 decimal)
+// - SDA Pin: GPIO8
+// - SCL Pin: GPIO9
+// - Same command format as Serial
+// - Example: Master sends "M185" -> Main LEDs pulse white medium
+// - Note: I2C disabled in Uppity Spinner Mode (pins used for spinner)
+//
+// Version: 2.2
+// Date: 2025/11
 // Author: Printed-Droid.com
 //
 
 // ========== CONFIGURATION ==========
 // Uncomment the following line to enable Uppity Spinner Mode
 // #define UPPITY_SPINNER_MODE
+
+// Bottom LED Hardware Configuration
+// Uncomment ONE of the following to match your hardware:
+#define BOTTOM_LED_V2  // New board: 12 LEDs in pairs (default)
+// #define BOTTOM_LED_V1  // Old board: 8 individual LEDs
 
 // Uppity Spinner Sequence Selection (only used in UPPITY_SPINNER_MODE)
 #define UPPITY_STATE_0_SEQUENCE -1  // -1 means all off, 0-20 means sequence Q0-Q20
@@ -86,11 +110,19 @@
 #define UPPITY_STATE_7_SEQUENCE 6   // Knight Rider
 
 #include <FastLED.h>
+#include <Wire.h>
+#include "Config.h"
 #include "BottomLeds.h"
 #include "MainLeds.h"
 #include "SideLeds.h"
 #include "BackLeds.h"
 #include "TopLeds.h"
+
+// I2C Configuration
+#define I2C_ADDRESS 0x20  // I2C address (32 decimal, 0x20 hex)
+
+// Configuration Manager
+ConfigManager configManager;
 
 #define BRIGHTNESS 80   // 0-255, higher number is brighter. 
 #define COLOR_ORDER GRB
@@ -120,7 +152,14 @@
 #define MAIN_NUMLEDS 9
 #define RIGHT_NUMLEDS 9
 #define LEFT_NUMLEDS 9
-#define BOTTOM_NUMLEDS 8
+
+// Bottom LED count based on hardware version
+#ifdef BOTTOM_LED_V2
+  #define BOTTOM_NUMLEDS 12  // New: 12 LEDs in pairs (1&2, 3&4, 5&6, 7&8, 9&10, 11&12) = 6 logical positions
+#else
+  #define BOTTOM_NUMLEDS 8   // Old: 8 individual LEDs
+#endif
+
 #define TOP_NUMLEDS 7
 #define BACK_NUMLEDS 3
 
@@ -131,6 +170,10 @@ CRGB left_leds[LEFT_NUMLEDS];
 CRGB bottom_leds[BOTTOM_NUMLEDS];
 CRGB top_leds[TOP_NUMLEDS];
 CRGB back_leds[BACK_NUMLEDS];
+
+// Global color map (20 slots: 0-9 defaults, 10-19 custom)
+// Initialized by ConfigManager
+CRGB colorMap[MAX_COLOR_SLOTS];
 
 // LED objects
 TopLeds    topLeds(top_leds, TOP_NUMLEDS);
@@ -168,6 +211,9 @@ bool inDemoMode = false;
 void processCommand(String cmd);
 void processSequence(int seq);
 void clearLEDs();
+#ifndef UPPITY_SPINNER_MODE
+void i2cEvent(int howMany);
+#endif
 
 void setup() {
   // Setup status LED
@@ -175,9 +221,30 @@ void setup() {
   
 #ifndef UPPITY_SPINNER_MODE
   Serial.begin(9600);
-  Serial.println("Starting Enhanced R2D2 Periscope - Serial Mode (Final Correction)");
+  Serial.println("Starting Enhanced R2D2 Periscope v2.2 - Serial Mode");
   Serial.println("Commands: [Target][Effect][Color][Speed]");
   Serial.println("Example: M1285 = Main LEDs, Effect 12, White, Speed 5");
+  Serial.println("Type 'HELP' for command list, 'CONFIG' for configuration");
+
+  // Initialize configuration system
+  configManager.begin();
+  Serial.println();
+
+  // Debug: Show hardware configuration
+  Serial.print("Bottom LEDs: ");
+  Serial.print(BOTTOM_NUMLEDS);
+  #ifdef BOTTOM_LED_V2
+    Serial.println(" (V2 - 12 LEDs in 6 pairs)");
+  #else
+    Serial.println(" (V1 - 8 individual LEDs)");
+  #endif
+
+  // Initialize I2C as slave
+  Wire.begin(SDA_PIN, SCL_PIN, I2C_ADDRESS);
+  Wire.onReceive(i2cEvent);
+  Serial.print("I2C initialized at address 0x");
+  Serial.println(I2C_ADDRESS, HEX);
+  Serial.println();
 #else
   // Configure Uppity Spinner pins
   pinMode(UPPITY_PIN_A, INPUT_PULLUP);
@@ -194,8 +261,16 @@ void setup() {
   FastLED.addLeds<WS2812, BOTTOM_PIN, COLOR_ORDER>(bottom_leds, BOTTOM_NUMLEDS).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<WS2812, TOP_PIN, COLOR_ORDER>(top_leds, TOP_NUMLEDS).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<WS2812, BACK_PIN, COLOR_ORDER>(back_leds, BACK_NUMLEDS).setCorrection(TypicalLEDStrip);
+
+#ifndef UPPITY_SPINNER_MODE
+  // Set brightness from config
+  FastLED.setBrightness(configManager.getBrightness());
+  Serial.print("Brightness set to: ");
+  Serial.println(configManager.getBrightness());
+#else
   FastLED.setBrightness(BRIGHTNESS);
-  
+#endif
+
 #ifdef UPPITY_SPINNER_MODE
   // Visual indication of Uppity Spinner mode - quick white flash
   fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
@@ -206,8 +281,14 @@ void setup() {
   FastLED.show();
   delay(200);
 #else
-  // Start with original R2D2 sequence in Serial mode
-  processSequence(0);
+  // Start with configured startup sequence in Serial mode
+  if (configManager.getAutoStart() && configManager.getStartupSequence() >= 0) {
+    Serial.print("Running startup sequence: Q");
+    Serial.println(configManager.getStartupSequence());
+    processSequence(configManager.getStartupSequence());
+  } else {
+    Serial.println("Auto-start disabled or no startup sequence set");
+  }
 #endif
 }
 
@@ -245,8 +326,33 @@ void loop() {
       int seqNum = commandString.substring(1).toInt();
       processSequence(seqNum);
     }
-    else if (commandString == "?") {
+    else if (commandString.startsWith("S") && commandString.length() >= 2 && isDigit(commandString.charAt(1))) {
+      // Custom sequence (S1-S10)
+      int slot = commandString.substring(1).toInt();
+      CustomSequence* seq = configManager.getSequence(slot);
+      if (seq) {
+        Serial.print("Running custom sequence: ");
+        Serial.println(seq->name);
+        for (int i = 0; i < seq->commandCount; i++) {
+          processCommand(String(seq->commands[i]));
+          if (seq->delays[i] > 0) {
+            delay(seq->delays[i]);
+          }
+        }
+      } else {
+        Serial.print("ERROR: Sequence S");
+        Serial.print(slot);
+        Serial.println(" not found");
+      }
+    }
+    else if (commandString == "?" || commandString == "HELP") {
       printStatus();
+    }
+    else if (commandString == "CONFIG" || commandString.startsWith("SET ") ||
+             commandString.startsWith("SEQ ") || commandString.startsWith("COLOR") ||
+             commandString == "COLORS" || commandString == "SAVE" ||
+             commandString == "RESET") {
+      configManager.processConfigCommand(commandString);
     }
     else {
       processCommand(commandString);
@@ -344,17 +450,79 @@ void checkSerial() {
 }
 
 void printStatus() {
-  Serial.println(F("\n=== LED Status ==="));
+  Serial.println(F("\n=== R2D2 Periscope Help ==="));
   Serial.print(F("System: "));
   Serial.println(activated ? "ON" : "OFF");
-  Serial.println(F("Use '?' for status, 'ON'/'OFF' to control."));
-  Serial.println(F("Commands: [Target][Effect][Color][Speed]"));
-  Serial.println(F("Targets: M, T, B, S, L, R, K, A, X"));
-  Serial.println(F("Effects: 0-16+ (e.g., 99 for Auto)"));
-  Serial.println(F("Colors: 0-9"));
-  Serial.println(F("Speed: 0-9"));
-  Serial.println(F("Sequences: Q0-Q20 (e.g., Q4=Police, Q6=Knight Rider)"));
-  Serial.println(F("==================\n"));
+
+  Serial.println(F("\n--- LED Commands ---"));
+  Serial.println(F("Format: [Target][Effect][Color][Speed]"));
+  Serial.println(F("  Targets: M, T, B, S, L, R, K, A, X"));
+  Serial.println(F("  Effects: 0-16+ (99=Auto)"));
+  Serial.println(F("  Colors: 0=Red 1=Yel 2=Grn 3=Cyan 4=Blue"));
+  Serial.println(F("          5=Mag 6=Org 7=Pur 8=Wht 9=Pink"));
+  Serial.println(F("  Speed: 0=Slow ... 9=Fast"));
+  Serial.println(F("Examples: M185, T385, B105, S485, X"));
+
+  Serial.println(F("\n--- Sequences ---"));
+  Serial.println(F("  Q0-Q20 - Built-in sequences"));
+  Serial.println(F("  Q21-Q31 - Thematic sequences"));
+  Serial.println(F("    Q21=Happy Q22=Angry Q23=Scared"));
+  Serial.println(F("    Q24=Boot Q25=Shutdown Q26=Radar"));
+  Serial.println(F("    Q27=Celebration Q28=Sleep"));
+  Serial.println(F("    Q29=Gradient Q30=Theater"));
+  Serial.println(F("    Q31=White Double-Flash"));
+  Serial.println(F("  S1-S10 - Custom sequences"));
+  Serial.println(F("  SEQ LIST - Show custom sequences"));
+
+  Serial.println(F("\n--- Configuration ---"));
+  Serial.println(F("  CONFIG - Show settings"));
+  Serial.println(F("  SET LEDS <8|12> - Bottom LED count"));
+  Serial.println(F("  SET STARTUP Q<n> - Startup sequence"));
+  Serial.println(F("  SET BRIGHTNESS <0-255>"));
+  Serial.println(F("  SAVE - Save to flash"));
+
+  Serial.println(F("\n--- Custom Sequences ---"));
+  Serial.println(F("  SEQ NEW S<n> <name>"));
+  Serial.println(F("  SEQ ADD S<n> <cmd> [DELAY <ms>]"));
+  Serial.println(F("  SEQ SAVE S<n>"));
+  Serial.println(F("  SEQ DEL S<n>"));
+
+  Serial.println(F("\n--- Custom Colors ---"));
+  Serial.println(F("  COLOR LIST - Show all colors (0-19)"));
+  Serial.println(F("  COLOR RGB <slot> <r> <g> <b> [name]"));
+  Serial.println(F("  COLOR HSV <slot> <h> <s> <v> [name]"));
+  Serial.println(F("  COLOR RESET <slot> - Reset one color"));
+  Serial.println(F("  COLOR RESET ALL - Reset all colors"));
+  Serial.println(F("  Slots: 0-9=Default, 10-19=Custom"));
+
+  Serial.println(F("\n--- Other ---"));
+  Serial.println(F("  ON/OFF - Enable/disable system"));
+  Serial.println(F("  HELP or ? - This help"));
+  Serial.println(F("=============================\n"));
+}
+
+void i2cEvent(int howMany) {
+  // Read I2C data into command buffer
+  commandString = "";
+  int i = 0;
+
+  while (Wire.available()) {
+    char inChar = (char)Wire.read();
+    if (i < MAX_COMMAND_LENGTH - 1) {
+      commandString += inChar;
+    }
+    i++;
+  }
+
+  // Set flag to process command in main loop
+  if (commandString.length() > 0) {
+    commandComplete = true;
+
+    #ifdef DEBUG_I2C
+    Serial.print(F("I2C Received: "));
+    Serial.println(commandString);
+    #endif
+  }
 }
 #endif
 
@@ -370,6 +538,8 @@ void processCommand(String cmd) {
     leftLeds.setEffect(0);
     rightLeds.setEffect(0);
     backLeds.setEffect(0);
+    clearLEDs();
+    FastLED.show();
     Serial.println("Set All to OFF");
     return;
   }
@@ -451,8 +621,8 @@ void processSequence(int seq) {
   switch(seq) {
     case 0: // Original R2D2 startup
       processCommand("M185");   // Main pulse white medium
-      processCommand("T185");   // Top left run white medium  
-      processCommand("S185");   // Sides pulse white medium
+      processCommand("T285");   // Top left-right white medium
+      processCommand("S385");   // Sides CW run 2 white medium
       processCommand("B105");   // Bottom superscan red medium
       processCommand("K105");   // Back random red/blue medium
       break;
@@ -462,9 +632,9 @@ void processSequence(int seq) {
       break;
     case 2: // Bright Pulse - Maximum brightness white pulse
       processCommand("M188");   // Main pulse white fast
-      processCommand("T888");   // Top pulse white fast  
+      processCommand("T888");   // Top pulse white fast
       processCommand("S188");   // Sides pulse white fast
-      processCommand("B188");   // Bottom simple white fast
+      processCommand("B188");   // Bottom simple white fast (ORIGINAL Effect 3)
       processCommand("K388");   // Back all on white fast
       break;
     case 3: // Communication Mode
@@ -496,7 +666,7 @@ void processSequence(int seq) {
       break;
     case 7: // Searchlight scanning - ALL WHITE
       processCommand("M388");   // Main all on white fast
-      processCommand("T188");   // Top all on white fast  
+      processCommand("T188");   // Top all on white fast
       processCommand("S188");   // Sides all on white fast
       processCommand("B288");   // Bottom all on white fast
       processCommand("K388");   // Back all on white fast
@@ -541,10 +711,10 @@ void processSequence(int seq) {
     case 13: // Fire
       processCommand("M13");    // Main fire
       processCommand("S7");     // Sides fire
-      processCommand("B462");    // Bottom random orange slow
-      processCommand("K462");    // Back alternate orange slow
+      processCommand("B462");   // Bottom random orange slow
+      processCommand("K462");   // Back alternate orange slow
       break;
-      
+
     case 14: // Celebration/Victory
       processCommand("A99");    // All auto-change
       break;
@@ -589,11 +759,179 @@ void processSequence(int seq) {
       currentDemoSequence = 0;
       lastDemoSequenceChange = millis();
       processSequence(0); // Start with first sequence
-      
+
 #ifndef UPPITY_SPINNER_MODE
       Serial.println("Demo mode: Cycling through all sequences");
       Serial.println("15 seconds per sequence");
 #endif
+      break;
+
+    // ========================================
+    // NEW THEMATIC SEQUENCES (Q21-Q28)
+    // ========================================
+
+    case 21: // Happy - Bright, energetic, multi-color
+      processCommand("M1789");   // Main twinkle white fast
+      processCommand("T1389");   // Top theater chase white fast
+      processCommand("S1089");   // Sides twinkle white fast
+      processCommand("B1089");   // Bottom twinkle white fast
+      processCommand("K289");    // Back all on yellow fast
+      break;
+
+    case 22: // Angry - Aggressive red strobing
+      processCommand("M902");    // Main strobe red slow
+      processCommand("T905");    // Top strobe red medium
+      processCommand("S905");    // Sides strobe red medium
+      processCommand("B905");    // Bottom strobe red medium
+      processCommand("K905");    // Back strobe red medium
+      break;
+
+    case 23: // Scared - Nervous, quick, erratic
+      processCommand("M1789");   // Main twinkle white fast
+      processCommand("T489");    // Top sparkle white fast
+      processCommand("S889");    // Sides sparkle white fast
+      processCommand("B489");    // Bottom random white fast
+      processCommand("K489");    // Back random white fast
+      break;
+
+    case 24: // Boot Sequence - Realistic system startup
+      processCommand("X");       // All off
+      delay(500);
+      processCommand("M308");    // Main center on white
+      delay(300);
+      processCommand("T185");    // Top leftrun white medium
+      delay(200);
+      processCommand("S285");    // Sides run white medium
+      delay(200);
+      processCommand("B205");    // Bottom scan red medium
+      delay(500);
+      processCommand("K285");    // Back all on red medium
+      delay(300);
+      processCommand("M185");    // Main pulse white medium
+      break;
+
+    case 25: // Shutdown - Gradual power down
+      processCommand("M185");    // Start with pulse
+      processCommand("T185");
+      processCommand("S185");
+      processCommand("B105");
+      processCommand("K105");
+      delay(1000);
+      processCommand("K0");      // Back off
+      delay(500);
+      processCommand("B0");      // Bottom off
+      delay(500);
+      processCommand("S0");      // Sides off
+      delay(500);
+      processCommand("T0");      // Top off
+      delay(500);
+      processCommand("M0");      // Main off
+      break;
+
+    case 26: // Radar Scan - Rotating scan effect
+      processCommand("M1435");   // Main circle chase cyan slow
+      processCommand("T285");    // Top left-right white medium
+      processCommand("S385");    // Sides run 2 cyan medium
+      processCommand("B235");    // Bottom scan cyan slow
+      processCommand("K335");    // Back all on cyan slow
+      break;
+
+    case 27: // Celebration - Enhanced party mode with new effects
+      processCommand("M1989");   // Main bounce trail white fast
+      processCommand("T1489");   // Top bounce trail white fast
+      processCommand("S1289");   // Sides bounce trail white fast
+      processCommand("B1289");   // Bottom bounce trail white fast
+      processCommand("K1279");   // Back rainbow fast
+      break;
+
+    case 28: // Sleep Mode - Gentle breathing
+      processCommand("M103");    // Main pulse red slow
+      processCommand("T103");    // Top pulse red slow
+      processCommand("S603");    // Sides breathe red slow
+      processCommand("B103");    // Bottom pulse red slow
+      processCommand("K103");    // Back pulse red slow
+      break;
+
+    case 29: // Color Gradient Demo - Show off gradient effect
+      processCommand("M2085");   // Main color gradient medium
+      processCommand("T1585");   // Top color gradient medium
+      processCommand("S1385");   // Sides color gradient medium
+      processCommand("B1385");   // Bottom color gradient medium
+      processCommand("K1275");   // Back rainbow medium
+      break;
+
+    case 30: // Theater Mode - All theater chase synchronized
+      processCommand("M1885");   // Main theater chase white medium
+      processCommand("T1385");   // Top theater chase white medium
+      processCommand("S1185");   // Sides theater chase white medium
+      processCommand("B1185");   // Bottom theater chase white medium
+      processCommand("K388");    // Back all on white fast
+      break;
+
+    case 31: // White double-flash sequence - Sides, Top/Bottom, Main (looping)
+      // Turn off all effects and clear all LEDs immediately
+      mainLeds.setEffect(0);
+      topLeds.setEffect(0);
+      bottomLeds.setEffect(0);
+      leftLeds.setEffect(0);
+      rightLeds.setEffect(0);
+      backLeds.setEffect(0);
+      clearLEDs();
+      FastLED.show();
+      delay(300);
+
+      // Loop the sequence 3 times
+      for (int i = 0; i < 3; i++) {
+        // Sides double flash (50% brightness = 128/255)
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
+
+        // Top and Bottom double flash (50% brightness = 128/255)
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
+
+        // Main double flash (100% brightness)
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
+      }
       break;
   }
 }

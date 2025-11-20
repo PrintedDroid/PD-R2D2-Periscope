@@ -2,21 +2,46 @@
 
 TopLeds::TopLeds(CRGB *leds, int numleds)
 {
-  this->lastUpdate = millis();
-  this->effectChangeTime = millis();
+  // Initialize base class members
   this->leds = leds;
   this->numleds = numleds;
-  this->speed = 200;
+  this->lastUpdate = millis();
+  this->effectChangeTime = millis();
+  this->speed = LedConstants::DEFAULT_SPEED_TOP;
   this->idx = 0;
+  this->pulse_speed = LedConstants::PULSE_SPEED_DEFAULT;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
+  this->theater_chase_q = 0;
   this->currentEffect = 0;
-  this->currentColor = 4; // Blue
+  this->currentColor = LedConstants::DEFAULT_COLOR_BLUE;
   this->autoChange = false;
+  this->bounceDirection = 1;
+
+  // Validation
+  if (!validatePointers()) {
+    #ifdef DEBUG_MODE
+      Serial.println(F("ERROR: TopLeds - Invalid LED pointer"));
+    #endif
+  }
+
+  if (!validateNumLeds()) {
+    #ifdef DEBUG_MODE
+      Serial.print(F("WARNING: TopLeds - NumLEDs out of range: "));
+      Serial.println(numleds);
+    #endif
+  }
 }
 
 void TopLeds::setEffect(int effect) {
   this->currentEffect = effect;
   this->idx = 0;
-  
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
+  this->bounceDirection = 1;
+
   if (effect == 99) {
     this->autoChange = true;
     this->currentEffect = 0;
@@ -25,34 +50,27 @@ void TopLeds::setEffect(int effect) {
   }
 }
 
-void TopLeds::setColor(int color) {
-  if (color >= 0 && color <= 9) {
-    this->currentColor = color;
-  }
-}
-
-void TopLeds::setSpeed(int speed) {
-  this->speed = speed;
-}
-
 void TopLeds::update(unsigned long currentTime)
 {
+  if (!validatePointers()) return;
+
   if ((currentTime - this->lastUpdate) < this->speed) return;
 
   // Auto-change mode
-  if (this->autoChange && (currentTime - this->effectChangeTime) > 5000) {
+  if (this->autoChange && (currentTime - this->effectChangeTime) > LedConstants::AUTO_CHANGE_INTERVAL_SIDE) {
     this->currentEffect++;
     this->idx = 0;
+    this->bounceDirection = 1;
     this->effectChangeTime = currentTime;
-    
-    if (this->currentEffect >= 12) {
+
+    if (this->currentEffect >= LedConstants::MAX_EFFECT_TOP) {
       this->currentEffect = 1; // Skip 0 (off) in auto mode
     }
   }
 
   switch (this->currentEffect) {
     case 0: // Off
-      fill_solid(this->leds, this->numleds, CRGB::Black);
+      safeFillSolid(CRGB::Black);
       break;
     case 1: // Left run
       this->leftrun();
@@ -64,7 +82,7 @@ void TopLeds::update(unsigned long currentTime)
       this->tocenter();
       break;
     case 4: // Sparkle
-      this->sparkle();
+      commonSparkle();
       break;
     case 5: // Comet
       this->comet();
@@ -73,10 +91,10 @@ void TopLeds::update(unsigned long currentTime)
       this->chase();
       break;
     case 7: // Rainbow
-      this->rainbow();
+      commonRainbow();
       break;
     case 8: // Pulse
-      this->pulse();
+      this->pulseEffect();
       break;
     case 9: // Bounce
       this->bounce();
@@ -87,19 +105,33 @@ void TopLeds::update(unsigned long currentTime)
     case 11: // Knight Rider
       this->knightRider();
       break;
+    case 12: // Twinkle
+      commonTwinkle();
+      break;
+    case 13: // Theater Chase (common)
+      commonTheaterChase();
+      break;
+    case 14: // Bounce with Trail
+      commonBounceWithTrail();
+      break;
+    case 15: // Color Gradient
+      commonColorGradient();
+      break;
   }
-    
+
   this->lastUpdate = currentTime;
 }
 
 void TopLeds::leftrun()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
+  if (!validatePointers()) return;
 
-  if (this->idx < this->numleds) {
-    this->leds[this->idx] = colorMap[this->currentColor];
+  safeFillSolid(CRGB::Black);
+
+  if (isValidIndex(this->idx)) {
+    this->leds[this->idx] = getCurrentColor();
   }
-  
+
   this->idx++;
   if (this->idx >= this->numleds) {
     this->idx = 0;
@@ -108,96 +140,95 @@ void TopLeds::leftrun()
 
 void TopLeds::leftright()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
 
   int left = this->idx;
   int right = (this->numleds - 1) - this->idx;
 
-  if (left < this->numleds) {
-    this->leds[left] = colorMap[this->currentColor];
+  if (isValidIndex(left)) {
+    this->leds[left] = getCurrentColor();
   }
-  if (right >= 0 && right < this->numleds) {
-    this->leds[right] = colorMap[this->currentColor];
+  if (isValidIndex(right)) {
+    this->leds[right] = getCurrentColor();
   }
-  
+
   this->idx++;
-  if (this->idx >= 6) {
+  if (this->idx >= LedConstants::INDEX_SIX) {
     this->idx = 0;
   }
 }
 
 void TopLeds::tocenter()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
 
   int left = this->idx;
   int right = (this->numleds - 1) - this->idx;
 
-  if (left < this->numleds) {
-    this->leds[left] = colorMap[this->currentColor];
+  if (isValidIndex(left)) {
+    this->leds[left] = getCurrentColor();
   }
-  if (right >= 0 && right < this->numleds) {
-    this->leds[right] = colorMap[this->currentColor];
+  if (isValidIndex(right)) {
+    this->leds[right] = getCurrentColor();
   }
-  
-  this->idx++;
-  if (this->idx >= 4) {
-    this->idx = 0;
-  }
-}
 
-void TopLeds::sparkle()
-{
-  fadeToBlackBy(this->leds, this->numleds, 10);
-  
-  if (random8() < 120) {
-    int pos = random(this->numleds);
-    this->leds[pos] = colorMap[this->currentColor];
+  this->idx++;
+  if (this->idx >= LedConstants::INDEX_FOUR) {
+    this->idx = 0;
   }
 }
 
 void TopLeds::comet()
 {
-  fadeToBlackBy(this->leds, this->numleds, 20);
-  
-  int pos = beatsin16(13, 0, this->numleds - 1);
-  this->leds[pos] = colorMap[this->currentColor];
-  
-  // Add trail
-  if (pos > 0) {
-    this->leds[pos - 1] = colorMap[this->currentColor];
-    this->leds[pos - 1].fadeToBlackBy(128);
-  }
-  if (pos < this->numleds - 1) {
-    this->leds[pos + 1] = colorMap[this->currentColor];
-    this->leds[pos + 1].fadeToBlackBy(128);
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::FADE_AMOUNT_STANDARD);
+
+  int pos = beatsin16(LedConstants::BEATSIN_FREQUENCY_BREATHE, 0, this->numleds - 1);
+  if (isValidIndex(pos)) {
+    this->leds[pos] = getCurrentColor();
+
+    // Add trail
+    if (isValidIndex(pos - 1)) {
+      this->leds[pos - 1] = getCurrentColor();
+      this->leds[pos - 1].fadeToBlackBy(LedConstants::FADE_MULTIPLIER_THEATER);
+    }
+    if (isValidIndex(pos + 1)) {
+      this->leds[pos + 1] = getCurrentColor();
+      this->leds[pos + 1].fadeToBlackBy(LedConstants::FADE_MULTIPLIER_THEATER);
+    }
   }
 }
 
 void TopLeds::chase()
 {
-  fadeToBlackBy(this->leds, this->numleds, 20);
-  
-  this->leds[this->idx] = colorMap[this->currentColor];
-  
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::FADE_AMOUNT_STANDARD);
+
+  if (isValidIndex(this->idx)) {
+    this->leds[this->idx] = getCurrentColor();
+  }
+
   this->idx++;
   if (this->idx >= this->numleds) {
     this->idx = 0;
   }
 }
 
-void TopLeds::rainbow()
+void TopLeds::pulseEffect()
 {
-  static uint8_t hue = 0;
-  fill_rainbow(this->leds, this->numleds, hue, 255 / this->numleds);
-  hue += map(this->speed, 50, 400, 10, 1);
-}
+  if (!validatePointers()) return;
 
-void TopLeds::pulse()
-{
-  uint8_t brightness = beatsin8(30, 50, 255);
-  CRGB color = colorMap[this->currentColor];
-  
+  uint8_t brightness = beatsin8(LedConstants::BEATSIN_FREQUENCY_PULSE,
+                                 LedConstants::PULSE_VALUE_MIN,
+                                 LedConstants::PULSE_VALUE_MAX);
+  CRGB color = getCurrentColor();
+
   for(int i = 0; i < this->numleds; i++) {
     this->leds[i] = color;
     this->leds[i].nscale8(brightness);
@@ -206,47 +237,48 @@ void TopLeds::pulse()
 
 void TopLeds::bounce()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
-  // Ball bouncing left to right and back
-  static int direction = 1;
-  
-  this->leds[this->idx] = colorMap[this->currentColor];
-  
-  // Add slight trail
-  if (this->idx > 0 && this->idx < this->numleds - 1) {
-    if (direction > 0 && this->idx > 0) {
-      this->leds[this->idx - 1] = colorMap[this->currentColor];
-      this->leds[this->idx - 1].fadeToBlackBy(180);
-    } else if (direction < 0 && this->idx < this->numleds - 1) {
-      this->leds[this->idx + 1] = colorMap[this->currentColor];
-      this->leds[this->idx + 1].fadeToBlackBy(180);
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
+  if (isValidIndex(this->idx)) {
+    this->leds[this->idx] = getCurrentColor();
+
+    // Add slight trail
+    if (this->bounceDirection > 0 && isValidIndex(this->idx - 1)) {
+      this->leds[this->idx - 1] = getCurrentColor();
+      this->leds[this->idx - 1].fadeToBlackBy(LedConstants::FADE_MULTIPLIER_WAVE);
+    } else if (this->bounceDirection < 0 && isValidIndex(this->idx + 1)) {
+      this->leds[this->idx + 1] = getCurrentColor();
+      this->leds[this->idx + 1].fadeToBlackBy(LedConstants::FADE_MULTIPLIER_WAVE);
     }
   }
-  
-  this->idx += direction;
-  
+
+  this->idx += this->bounceDirection;
+
   if (this->idx >= this->numleds - 1 || this->idx <= 0) {
-    direction = -direction;
+    this->bounceDirection = -this->bounceDirection;
   }
 }
 
 void TopLeds::fillFromCenter()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
   int center = this->numleds / 2;
-  
+
   // Fill from center outward
   for(int i = 0; i <= this->idx; i++) {
-    if (center + i < this->numleds) {
-      this->leds[center + i] = colorMap[this->currentColor];
+    if (isValidIndex(center + i)) {
+      this->leds[center + i] = getCurrentColor();
     }
-    if (center - i >= 0) {
-      this->leds[center - i] = colorMap[this->currentColor];
+    if (isValidIndex(center - i)) {
+      this->leds[center - i] = getCurrentColor();
     }
   }
-  
+
   this->idx++;
   if (this->idx > center) {
     this->idx = 0;
@@ -255,27 +287,26 @@ void TopLeds::fillFromCenter()
 
 void TopLeds::knightRider()
 {
-  fadeToBlackBy(this->leds, this->numleds, 60);
-  
-  static int direction = 1;
-  int width = 3; // Width of the scanner
-  
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::SCANNER_FADE_AMOUNT);
+
   // Draw the scanner
-  for(int i = 0; i < width; i++) {
-    int pos = this->idx + i - (width / 2);
-    if (pos >= 0 && pos < this->numleds) {
-      this->leds[pos] = colorMap[this->currentColor];
-      
+  for(int i = 0; i < LedConstants::SCANNER_WIDTH; i++) {
+    int pos = this->idx + i - (LedConstants::SCANNER_WIDTH / 2);
+    if (isValidIndex(pos)) {
+      this->leds[pos] = getCurrentColor();
+
       // Center is brightest
-      if (i != width / 2) {
-        this->leds[pos].fadeToBlackBy(80);
+      if (i != LedConstants::SCANNER_WIDTH / 2) {
+        this->leds[pos].fadeToBlackBy(LedConstants::FADE_AMOUNT_VERY_HEAVY);
       }
     }
   }
-  
-  this->idx += direction;
-  
+
+  this->idx += this->bounceDirection;
+
   if (this->idx >= this->numleds - 1 || this->idx <= 0) {
-    direction = -direction;
+    this->bounceDirection = -this->bounceDirection;
   }
 }
