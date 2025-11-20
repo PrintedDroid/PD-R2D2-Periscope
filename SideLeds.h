@@ -10,7 +10,7 @@ class SideLeds: public BaseLeds {
     void setEffect(int effect) override;
 
   private:
-    void pulse();
+    void pulseEffect();  // Renamed from pulse() to avoid conflict with BaseLeds::pulse variable
     void cw_run(int pt);
     void breathe();
 

@@ -42,7 +42,8 @@ void BaseLeds::commonFire(byte* heat, int heatSize) {
 
   // Randomly ignite new sparks near bottom
   if(random8() < LedConstants::FIRE_IGNITION_THRESHOLD) {
-    int y = random8(min(LedConstants::FIRE_SPARK_RANGE, effectiveSize - 1));
+    int maxRange = min((int)LedConstants::FIRE_SPARK_RANGE, effectiveSize - 1);
+    int y = random8(maxRange);
     heat[y] = qadd8(heat[y], random8(LedConstants::FIRE_HEAT_MIN, LedConstants::FIRE_HEAT_MAX));
   }
 
