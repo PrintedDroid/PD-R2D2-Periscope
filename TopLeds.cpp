@@ -93,7 +93,7 @@ void TopLeds::update(unsigned long currentTime)
       commonRainbow();
       break;
     case 8: // Pulse
-      this->pulse();
+      this->pulseEffect();
       break;
     case 9: // Bounce
       this->bounce();
@@ -207,7 +207,7 @@ void TopLeds::chase()
   }
 }
 
-void TopLeds::pulse()
+void TopLeds::pulseEffect()
 {
   if (!validatePointers()) return;
 

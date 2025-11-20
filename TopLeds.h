@@ -15,7 +15,7 @@ class TopLeds: public BaseLeds {
     void tocenter();
     void comet();
     void chase();
-    void pulse();
+    void pulseEffect();  // Renamed from pulse() to avoid conflict with BaseLeds::pulse variable
     void bounce();
     void fillFromCenter();
     void knightRider();

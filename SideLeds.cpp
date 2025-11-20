@@ -78,7 +78,7 @@ void SideLeds::update(unsigned long currentTime)
       safeFillSolid(CRGB::Black);
       break;
     case 1: // Pulse
-      this->pulse();
+      this->pulseEffect();
       break;
     case 2: // CW run 1
       this->cw_run(1);
@@ -109,7 +109,7 @@ void SideLeds::update(unsigned long currentTime)
   this->lastUpdate = currentTime;
 }
 
-void SideLeds::pulse()
+void SideLeds::pulseEffect()
 {
   if (!validatePointers()) return;
 
