@@ -207,6 +207,15 @@ int currentDemoSequence = 0;
 unsigned long lastDemoSequenceChange = 0;
 bool inDemoMode = false;
 
+// Global variables for sequence timeout (QxxTyy feature)
+unsigned long sequenceEndTime = 0;
+bool sequenceWithTimeout = false;
+
+// Global variables for Q31 looping
+bool repeatQ31 = false;
+unsigned long q31LastRun = 0;
+#define Q31_LOOP_DELAY 300  // Delay between Q31 repetitions in ms
+
 // Forward declarations
 void processCommand(String cmd);
 void processSequence(int seq);
@@ -320,10 +329,41 @@ void loop() {
     }
     else if (commandString == "OFF") {
       activated = false;
+      repeatQ31 = false;
+      sequenceWithTimeout = false;
+      inDemoMode = false;
       Serial.println("System: OFF");
     }
     else if (commandString.startsWith("Q")) {
-      int seqNum = commandString.substring(1).toInt();
+      // Stop any previous timeout or Q31 loop
+      sequenceWithTimeout = false;
+      repeatQ31 = false;
+      inDemoMode = false;
+
+      // Parse QxxTyy format (e.g., Q15T20 = Sequence 15 for 20 seconds)
+      int tIndex = commandString.indexOf('T');
+      int seqNum = 0;
+      int timeoutSeconds = 0;
+
+      if (tIndex > 1) {
+        // Format: QxxTyy
+        seqNum = commandString.substring(1, tIndex).toInt();
+        timeoutSeconds = commandString.substring(tIndex + 1).toInt();
+
+        if (timeoutSeconds > 0) {
+          sequenceWithTimeout = true;
+          sequenceEndTime = millis() + (timeoutSeconds * 1000UL);
+          Serial.print("Sequence Q");
+          Serial.print(seqNum);
+          Serial.print(" with ");
+          Serial.print(timeoutSeconds);
+          Serial.println(" second timeout");
+        }
+      } else {
+        // Format: Qxx
+        seqNum = commandString.substring(1).toInt();
+      }
+
       processSequence(seqNum);
     }
     else if (commandString.startsWith("S") && commandString.length() >= 2 && isDigit(commandString.charAt(1))) {
@@ -396,6 +436,18 @@ void loop() {
   }
 #endif
 
+  // Check for sequence timeout (QxxTyy feature)
+  if (sequenceWithTimeout && millis() >= sequenceEndTime) {
+    sequenceWithTimeout = false;
+    repeatQ31 = false;
+    activated = false;
+    clearLEDs();
+    FastLED.show();
+    #ifndef UPPITY_SPINNER_MODE
+      Serial.println(F("Sequence timeout - system OFF"));
+    #endif
+  }
+
   // Update LEDs if activated
   if (activated) {
     // Handle demo mode sequence cycling
@@ -409,7 +461,13 @@ void loop() {
         lastDemoSequenceChange = millis();
       }
     }
-    
+
+    // Handle Q31 looping
+    if (repeatQ31 && (millis() - q31LastRun >= Q31_LOOP_DELAY)) {
+      q31LastRun = millis();
+      processSequence(31);
+    }
+
     mainLeds.update(currentTime);
     topLeds.update(currentTime);
     leftLeds.update(currentTime);
@@ -470,9 +528,13 @@ void printStatus() {
   Serial.println(F("    Q24=Boot Q25=Shutdown Q26=Radar"));
   Serial.println(F("    Q27=Celebration Q28=Sleep"));
   Serial.println(F("    Q29=Gradient Q30=Theater"));
-  Serial.println(F("    Q31=White Double-Flash"));
+  Serial.println(F("    Q31=White Flash (loops forever)"));
   Serial.println(F("  S1-S10 - Custom sequences"));
   Serial.println(F("  SEQ LIST - Show custom sequences"));
+  Serial.println(F("\n--- Timed Sequences ---"));
+  Serial.println(F("  Q<n>T<sec> - Run sequence for <sec> seconds"));
+  Serial.println(F("  Examples: Q15T20 (Q15 for 20 sec, then OFF)"));
+  Serial.println(F("            Q31T10 (Q31 loops for 10 sec)"));
 
   Serial.println(F("\n--- Configuration ---"));
   Serial.println(F("  CONFIG - Show settings"));
@@ -529,6 +591,9 @@ void i2cEvent(int howMany) {
 // Corrected, robust command processing function
 void processCommand(String cmd) {
   if (cmd.length() < 2) return;
+
+  // Stop Q31 looping when any other command is received
+  repeatQ31 = false;
 
   char target = cmd.charAt(0);
   if (target == 'X') {
@@ -868,7 +933,7 @@ void processSequence(int seq) {
       processCommand("K388");    // Back all on white fast
       break;
 
-    case 31: // White double-flash sequence - Sides, Top/Bottom, Main (looping)
+    case 31: // White double-flash sequence - Sides, Top/Bottom, Main (continuous loop)
       // Turn off all effects and clear all LEDs immediately
       mainLeds.setEffect(0);
       topLeds.setEffect(0);
@@ -880,58 +945,60 @@ void processSequence(int seq) {
       FastLED.show();
       delay(300);
 
-      // Loop the sequence 3 times
-      for (int i = 0; i < 3; i++) {
-        // Sides double flash (50% brightness = 128/255)
-        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
-        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
-        FastLED.show();
-        delay(50);
-        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
-        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(50);
-        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
-        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
-        FastLED.show();
-        delay(50);
-        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
-        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(300);
+      // Run sequence once (will be repeated by loop())
+      // Sides double flash (50% brightness = 128/255)
+      fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+      FastLED.show();
+      delay(50);
+      fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(50);
+      fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+      FastLED.show();
+      delay(50);
+      fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(300);
 
-        // Top and Bottom double flash (50% brightness = 128/255)
-        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
-        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
-        FastLED.show();
-        delay(50);
-        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
-        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(50);
-        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
-        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
-        FastLED.show();
-        delay(50);
-        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
-        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(300);
+      // Top and Bottom double flash (50% brightness = 128/255)
+      fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+      FastLED.show();
+      delay(50);
+      fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(50);
+      fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+      FastLED.show();
+      delay(50);
+      fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(300);
 
-        // Main double flash (100% brightness)
-        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
-        FastLED.show();
-        delay(50);
-        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(50);
-        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
-        FastLED.show();
-        delay(50);
-        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
-        FastLED.show();
-        delay(300);
-      }
+      // Main double flash (100% brightness)
+      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+      FastLED.show();
+      delay(50);
+      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(50);
+      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+      FastLED.show();
+      delay(50);
+      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+      FastLED.show();
+      delay(300);
+
+      // Enable continuous looping
+      repeatQ31 = true;
+      q31LastRun = millis();
       break;
   }
 }

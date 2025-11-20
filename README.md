@@ -13,6 +13,8 @@ This LED controller brings your R2-D2 Periscope to life with stunning light effe
 - **⚡ Variable Speed Control** - 0-9 speed settings for all effects
 - **📡 Dual Control Modes** - Serial commands OR Uppity Spinner hardware interface
 - **🎬 32 Pre-programmed Sequences** - R2-D2 startup, police lights, alarm, Knight Rider, fire, thematic sequences, and more
+- **⏱️ Timed Sequences** - Run any sequence for a specified time (e.g., Q15T20 = 20 seconds)
+- **🔁 Q31 Continuous Loop** - White flash alert that loops forever until stopped
 - **🎯 10 Custom Sequences** - Create and save your own light shows with the CLI
 - **💾 Flash Storage** - All settings, colors, and sequences persist across reboots
 - **🔧 CLI Configuration System** - Runtime configuration without recompiling
@@ -195,6 +197,9 @@ T249    = Top LEDs, Effect 2 (run), Blue (4), Speed 9 (fastest)
 A643    = All LEDs, Effect 6 (split), Blue (4), Speed 3
 M12     = Main LEDs, Effect 12 (rainbow), auto color
 Q4      = Sequence 4 (Police lights)
+Q31     = Sequence 31 (White flash - loops forever)
+Q15T20  = Sequence 15 for 20 seconds, then auto-OFF
+Q31T10  = Q31 loops for 10 seconds, then stops
 S1      = Custom sequence 1 (user-defined)
 ON      = Enable all LEDs
 OFF     = Disable all LEDs
@@ -213,6 +218,7 @@ HELP    = Show comprehensive command reference
 - **A**: All LEDs (49 LEDs)
 - **X**: All OFF
 - **Q[0-31]**: Built-in sequences (predefined light shows)
+- **Q[0-31]T[seconds]**: Timed sequences (runs for specified seconds, then auto-OFF)
 - **S[1-10]**: Custom sequences (user-created sequences)
 
 #### Effects (Per LED Group):
@@ -322,6 +328,73 @@ HELP    = Show comprehensive command reference
 #### Speed (0-9):
 - **0**: Slowest
 - **9**: Fastest
+
+---
+
+## ⏱️ Timed Sequences (QxxTyy)
+
+**NEW in v2.2!** Run any sequence for a specified time, then automatically turn off.
+
+### Syntax:
+```
+Q<sequence>T<seconds>
+```
+
+### How It Works:
+- Runs the specified sequence for the given number of seconds
+- Automatically turns the system **OFF** when time expires
+- Works with **ALL sequences** (Q0-Q31)
+- **Q31 special behavior**: Loops continuously during the time window
+- Can be stopped early by sending any other command
+
+### Examples:
+
+**Basic timed sequences:**
+```
+Q15T20    Run sequence 15 for 20 seconds, then OFF
+Q4T30     Police lights for 30 seconds
+Q11T60    Calm blue for 60 seconds (1 minute)
+Q0T10     R2-D2 startup for 10 seconds
+```
+
+**Q31 with timer:**
+```
+Q31T10    White flash loops for 10 seconds, then stops
+Q31T5     Quick 5-second alert flash
+Q31       White flash loops FOREVER (no timer)
+```
+
+### Stopping Timed Sequences:
+
+Any command will stop the timer and current sequence:
+```
+OFF       Stop sequence and turn off
+Q5        Stop current and run Q5 instead
+M185      Stop sequence and run effect
+X         All LEDs off
+```
+
+### Use Cases:
+
+**Attention Signal:**
+```
+Q31T10    Alert flash for 10 seconds
+```
+
+**Timed Party Mode:**
+```
+Q1T300    Party mode for 5 minutes (300 seconds)
+```
+
+**Quick Test:**
+```
+Q4T5      Test police lights for 5 seconds
+```
+
+**Sleep Timer:**
+```
+Q28T1800  Sleep mode for 30 minutes, then auto-off
+```
 
 ---
 
@@ -715,16 +788,35 @@ Showcases the new color gradient effect across all LED groups.
 #### Q30: Theater Mode
 All theater chase effects synchronized in white.
 
-#### Q31: White Double-Flash **NEW!**
-Precise white strobe sequence:
-- Sides double-flash (50% brightness)
-- Pause 500ms
-- Top & Bottom double-flash (50% brightness)
-- Pause 500ms
-- Main double-flash (100% brightness)
-- Pause 500ms
+#### Q31: White Double-Flash (Continuous Loop) **NEW!**
+**Special behavior: Loops continuously until stopped!**
 
-Perfect for attention-getting alerts or communication signals!
+Precise white strobe sequence that repeats forever:
+- Sides double-flash (50% brightness)
+- Pause 300ms
+- Top & Bottom double-flash (50% brightness)
+- Pause 300ms
+- Main double-flash (100% brightness)
+- Pause 300ms
+- **Repeat continuously**
+
+**Stopping Q31:**
+- Send any other command (OFF, Q0, M185, X, etc.)
+- Use timed version: `Q31T10` (runs for 10 seconds, then stops)
+
+Perfect for:
+- Continuous alert signals
+- Attention-getting mode
+- Communication signals
+- Emergency indicators
+
+**Examples:**
+```
+Q31       Runs forever (until stopped)
+Q31T10    Runs for 10 seconds, then auto-stops
+Q31T5     Quick 5-second alert
+OFF       Stops Q31 immediately
+```
 
 ---
 
@@ -1227,7 +1319,6 @@ PD-Periscope/
 ├── BottomLeds.h / .cpp                   # Bottom LEDs (12 LEDs)
 ├── SideLeds.h / .cpp                     # Left/Right LEDs (9 each)
 ├── BackLeds.h / .cpp                     # Back LEDs (3 LEDs)
-├── REFACTORING_SUMMARY.md                # Refactoring documentation (v2.2)
 └── README.md                             # This file
 ```
 
@@ -1244,7 +1335,9 @@ PD-Periscope/
 - **NEW:** Custom color management system (20 color slots, RGB/HSV, flash storage)
 - **NEW:** Custom sequence creation system (S1-S10 user sequences)
 - **NEW:** Comprehensive CLI configuration system
-- **NEW:** Q31 white double-flash sequence
+- **NEW:** Timed sequences (QxxTyy format: Q15T20 = run for 20 seconds, then auto-OFF)
+- **NEW:** Q31 white double-flash sequence with continuous looping
+- **NEW:** Q31 special behavior: loops forever until stopped by another command
 - **NEW:** 10 new LED effects across all classes (twinkle, theater, bounce, gradient)
 - **NEW:** 10 thematic sequences (Q21-Q30: Happy, Angry, Scared, Boot, etc.)
 - Created Constants.h - eliminated 100+ magic numbers
