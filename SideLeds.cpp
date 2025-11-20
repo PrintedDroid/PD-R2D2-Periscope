@@ -133,17 +133,17 @@ void SideLeds::cw_run(int pt)
 
   safeFillSolid(CRGB::Black);
 
-  // Always keep center LED on with current color
-  if (isValidIndex(0)) {
-    this->leds[0] = getCurrentColor();
+  // Always keep center LED on with current color (last LED = center)
+  int centerLed = this->numleds - 1;
+  if (isValidIndex(centerLed)) {
+    this->leds[centerLed] = getCurrentColor();
   }
 
+  // Running LEDs in circle (LEDs 0 to numleds-2)
   for(int x = 0; x < pt; x++) {
     int y = (this->idx + x) % LedConstants::MAIN_LED_CIRCLE_SIZE;
-    // Add 1 to skip center LED (index 0)
-    int ledIndex = y + 1;
-    if (isValidIndex(ledIndex)) {
-      this->leds[ledIndex] = getCurrentColor();
+    if (isValidIndex(y)) {
+      this->leds[y] = getCurrentColor();
     }
   }
 
