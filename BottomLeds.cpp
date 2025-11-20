@@ -39,14 +39,6 @@ BottomLeds::BottomLeds(CRGB *leds, int numleds)
         Serial.println(F("WARNING: BottomLeds - NumLEDs should be even (pairs) for V2 hardware"));
       #endif
     }
-    // Debug: Print configuration
-    Serial.print(F("BottomLeds V2: numleds="));
-    Serial.print(numleds);
-    Serial.print(F(", logical positions="));
-    Serial.println(getLogicalCount());
-  #else
-    Serial.print(F("BottomLeds V1: numleds="));
-    Serial.println(numleds);
   #endif
 }
 
