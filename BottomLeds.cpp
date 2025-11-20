@@ -123,20 +123,20 @@ void BottomLeds::update(unsigned long currentTime)
     case 0: // Off
       safeFillSolid(CRGB::Black);
       break;
-    case 1: // Pulse
-      commonPulseAll();
+    case 1: // Superscan (ORIGINAL Effect 1)
+      this->superscan();
       break;
-    case 2: // Simple scan
-      this->simple();
-      break;
-    case 3: // Scan (2 pairs)
+    case 2: // Scan (ORIGINAL Effect 2)
       this->scan();
+      break;
+    case 3: // Simple (ORIGINAL Effect 3)
+      this->simple();
       break;
     case 4: // Random
       this->randomLight();
       break;
-    case 5: // Strobe
-      commonStrobe();
+    case 5: // Chase (ORIGINAL Effect 5)
+      this->chase();
       break;
     case 6: // Comet
       this->comet();
@@ -149,9 +149,6 @@ void BottomLeds::update(unsigned long currentTime)
       break;
     case 9: // Snake
       this->snake();
-      break;
-    case 10: // Superscan (special pattern)
-      this->superscan();
       break;
   }
 
