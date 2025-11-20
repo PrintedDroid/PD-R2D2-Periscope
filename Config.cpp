@@ -1,4 +1,5 @@
 #include "Config.h"
+#include <FastLED.h>
 
 ConfigManager::ConfigManager() {
   // Initialize with defaults
