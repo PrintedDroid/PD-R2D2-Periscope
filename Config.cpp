@@ -16,12 +16,14 @@ ConfigManager::ConfigManager() {
   }
 
   clearTempSequence();
+  initializeDefaultColors();
 }
 
 void ConfigManager::begin() {
   preferences.begin("periscope", false);  // RW mode
   loadConfig();
   loadCustomSequences();
+  loadCustomColors();
 }
 
 uint8_t ConfigManager::getBottomLedCount() {
@@ -87,6 +89,8 @@ void ConfigManager::saveConfig() {
   preferences.putBool("autoStart", config.autoStart);
   preferences.putString("version", config.version);
 
+  saveCustomColors();
+
   Serial.println("Configuration saved to flash!");
 }
 
@@ -119,6 +123,9 @@ void ConfigManager::resetToDefaults() {
     customSequences[i].name[0] = '\0';
     customSequences[i].commandCount = 0;
   }
+
+  // Reset colors
+  resetAllColors();
 
   saveConfig();
   saveCustomSequences();
@@ -336,6 +343,223 @@ bool ConfigManager::isValidSlot(uint8_t slot) {
   return (slot >= 1 && slot <= MAX_CUSTOM_SEQUENCES);
 }
 
+bool ConfigManager::isValidColorSlot(uint8_t slot) {
+  return (slot < MAX_COLOR_SLOTS);
+}
+
+void ConfigManager::initializeDefaultColors() {
+  // Default colors (0-9) - matching original colorMap
+  const char* defaultNames[] = {"Red", "Yellow", "Green", "Cyan", "Blue",
+                                  "Magenta", "Orange", "Purple", "White", "Pink"};
+  CRGB defaultColors[] = {CRGB::Red, CRGB::Yellow, CRGB::Green, CRGB::Cyan, CRGB::Blue,
+                          CRGB::Magenta, CRGB::Orange, CRGB::Purple, CRGB::White, CRGB::Pink};
+
+  for (int i = 0; i < 10; i++) {
+    strncpy(customColors[i].name, defaultNames[i], 19);
+    customColors[i].name[19] = '\0';
+    customColors[i].r = defaultColors[i].r;
+    customColors[i].g = defaultColors[i].g;
+    customColors[i].b = defaultColors[i].b;
+    customColors[i].isCustom = false;
+  }
+
+  // Custom slots (10-19) - empty by default
+  for (int i = 10; i < MAX_COLOR_SLOTS; i++) {
+    sprintf(customColors[i].name, "Custom%d", i - 9);
+    customColors[i].r = 128;
+    customColors[i].g = 128;
+    customColors[i].b = 128;
+    customColors[i].isCustom = false;
+  }
+
+  // Update global colorMap
+  for (int i = 0; i < MAX_COLOR_SLOTS; i++) {
+    colorMap[i] = CRGB(customColors[i].r, customColors[i].g, customColors[i].b);
+  }
+}
+
+bool ConfigManager::setColorRGB(uint8_t slot, uint8_t r, uint8_t g, uint8_t b, const char* name) {
+  if (!isValidColorSlot(slot)) {
+    Serial.println("ERROR: Color slot must be 0-19");
+    return false;
+  }
+
+  customColors[slot].r = r;
+  customColors[slot].g = g;
+  customColors[slot].b = b;
+  customColors[slot].isCustom = true;
+
+  if (name && strlen(name) > 0) {
+    strncpy(customColors[slot].name, name, 19);
+    customColors[slot].name[19] = '\0';
+  }
+
+  // Update global colorMap
+  colorMap[slot] = CRGB(r, g, b);
+
+  Serial.print("Color ");
+  Serial.print(slot);
+  Serial.print(" set to RGB(");
+  Serial.print(r);
+  Serial.print(",");
+  Serial.print(g);
+  Serial.print(",");
+  Serial.print(b);
+  Serial.println(")");
+
+  return true;
+}
+
+bool ConfigManager::setColorHSV(uint8_t slot, uint8_t h, uint8_t s, uint8_t v, const char* name) {
+  if (!isValidColorSlot(slot)) {
+    Serial.println("ERROR: Color slot must be 0-19");
+    return false;
+  }
+
+  CHSV hsv(h, s, v);
+  CRGB rgb;
+  hsv2rgb_rainbow(hsv, rgb);
+
+  customColors[slot].r = rgb.r;
+  customColors[slot].g = rgb.g;
+  customColors[slot].b = rgb.b;
+  customColors[slot].isCustom = true;
+
+  if (name && strlen(name) > 0) {
+    strncpy(customColors[slot].name, name, 19);
+    customColors[slot].name[19] = '\0';
+  }
+
+  // Update global colorMap
+  colorMap[slot] = rgb;
+
+  Serial.print("Color ");
+  Serial.print(slot);
+  Serial.print(" set to HSV(");
+  Serial.print(h);
+  Serial.print(",");
+  Serial.print(s);
+  Serial.print(",");
+  Serial.print(v);
+  Serial.println(")");
+
+  return true;
+}
+
+CRGB ConfigManager::getColor(uint8_t slot) {
+  if (isValidColorSlot(slot)) {
+    return CRGB(customColors[slot].r, customColors[slot].g, customColors[slot].b);
+  }
+  return CRGB::White; // Fallback
+}
+
+void ConfigManager::listColors() {
+  Serial.println(F("\n=== Color Palette ==="));
+  Serial.println(F("Slot | Name          | RGB          | Status"));
+  Serial.println(F("-----|---------------|--------------|--------"));
+
+  for (int i = 0; i < MAX_COLOR_SLOTS; i++) {
+    char line[60];
+    snprintf(line, 60, "%4d | %-13s | %3d,%3d,%3d | %s",
+             i,
+             customColors[i].name,
+             customColors[i].r, customColors[i].g, customColors[i].b,
+             customColors[i].isCustom ? "Custom" : "Default");
+    Serial.println(line);
+  }
+
+  Serial.println(F("=====================\n"));
+}
+
+void ConfigManager::resetColor(uint8_t slot) {
+  if (!isValidColorSlot(slot)) {
+    Serial.println("ERROR: Color slot must be 0-19");
+    return;
+  }
+
+  // Reset to default if slot 0-9, otherwise to gray
+  if (slot < 10) {
+    const char* defaultNames[] = {"Red", "Yellow", "Green", "Cyan", "Blue",
+                                    "Magenta", "Orange", "Purple", "White", "Pink"};
+    CRGB defaultColors[] = {CRGB::Red, CRGB::Yellow, CRGB::Green, CRGB::Cyan, CRGB::Blue,
+                            CRGB::Magenta, CRGB::Orange, CRGB::Purple, CRGB::White, CRGB::Pink};
+
+    strncpy(customColors[slot].name, defaultNames[slot], 19);
+    customColors[slot].r = defaultColors[slot].r;
+    customColors[slot].g = defaultColors[slot].g;
+    customColors[slot].b = defaultColors[slot].b;
+    customColors[slot].isCustom = false;
+  } else {
+    sprintf(customColors[slot].name, "Custom%d", slot - 9);
+    customColors[slot].r = 128;
+    customColors[slot].g = 128;
+    customColors[slot].b = 128;
+    customColors[slot].isCustom = false;
+  }
+
+  colorMap[slot] = CRGB(customColors[slot].r, customColors[slot].g, customColors[slot].b);
+
+  Serial.print("Color ");
+  Serial.print(slot);
+  Serial.println(" reset to default");
+}
+
+void ConfigManager::resetAllColors() {
+  initializeDefaultColors();
+  saveCustomColors();
+  Serial.println("All colors reset to defaults");
+}
+
+void ConfigManager::saveCustomColors() {
+  for (int i = 0; i < MAX_COLOR_SLOTS; i++) {
+    if (customColors[i].isCustom) {
+      char key[20];
+      snprintf(key, 20, "color%d", i);
+
+      // Save as: name|r|g|b
+      String data = String(customColors[i].name) + "|" +
+                    String(customColors[i].r) + "|" +
+                    String(customColors[i].g) + "|" +
+                    String(customColors[i].b);
+
+      preferences.putString(key, data);
+    }
+  }
+}
+
+void ConfigManager::loadCustomColors() {
+  for (int i = 0; i < MAX_COLOR_SLOTS; i++) {
+    char key[20];
+    snprintf(key, 20, "color%d", i);
+
+    if (preferences.isKey(key)) {
+      String data = preferences.getString(key, "");
+
+      if (data.length() > 0) {
+        // Parse: name|r|g|b
+        int pipe1 = data.indexOf('|');
+        int pipe2 = data.indexOf('|', pipe1 + 1);
+        int pipe3 = data.indexOf('|', pipe2 + 1);
+
+        String name = data.substring(0, pipe1);
+        int r = data.substring(pipe1 + 1, pipe2).toInt();
+        int g = data.substring(pipe2 + 1, pipe3).toInt();
+        int b = data.substring(pipe3 + 1).toInt();
+
+        strncpy(customColors[i].name, name.c_str(), 19);
+        customColors[i].name[19] = '\0';
+        customColors[i].r = r;
+        customColors[i].g = g;
+        customColors[i].b = b;
+        customColors[i].isCustom = true;
+
+        // Update global colorMap
+        colorMap[i] = CRGB(r, g, b);
+      }
+    }
+  }
+}
+
 void ConfigManager::printConfig() {
   Serial.println(F("\n=== Periscope Configuration ==="));
   Serial.print(F("Version: "));
@@ -428,6 +652,64 @@ void ConfigManager::processConfigCommand(String cmd) {
   else if (cmd == "SEQ LIST") {
     listSequences();
   }
+  else if (cmd == "COLOR LIST" || cmd == "COLORS") {
+    listColors();
+  }
+  else if (cmd.startsWith("COLOR RGB ")) {
+    // Format: COLOR RGB <slot> <r> <g> <b> [name]
+    String params = cmd.substring(10);
+    int firstSpace = params.indexOf(' ');
+    int secondSpace = params.indexOf(' ', firstSpace + 1);
+    int thirdSpace = params.indexOf(' ', secondSpace + 1);
+    int fourthSpace = params.indexOf(' ', thirdSpace + 1);
+
+    if (firstSpace > 0 && secondSpace > 0 && thirdSpace > 0) {
+      int slot = params.substring(0, firstSpace).toInt();
+      int r = params.substring(firstSpace + 1, secondSpace).toInt();
+      int g = params.substring(secondSpace + 1, thirdSpace).toInt();
+      int b = params.substring(thirdSpace + 1, fourthSpace > 0 ? fourthSpace : params.length()).toInt();
+
+      String name = "";
+      if (fourthSpace > 0) {
+        name = params.substring(fourthSpace + 1);
+      }
+
+      setColorRGB(slot, r, g, b, name.c_str());
+    } else {
+      Serial.println("ERROR: Format: COLOR RGB <slot> <r> <g> <b> [name]");
+    }
+  }
+  else if (cmd.startsWith("COLOR HSV ")) {
+    // Format: COLOR HSV <slot> <h> <s> <v> [name]
+    String params = cmd.substring(10);
+    int firstSpace = params.indexOf(' ');
+    int secondSpace = params.indexOf(' ', firstSpace + 1);
+    int thirdSpace = params.indexOf(' ', secondSpace + 1);
+    int fourthSpace = params.indexOf(' ', thirdSpace + 1);
+
+    if (firstSpace > 0 && secondSpace > 0 && thirdSpace > 0) {
+      int slot = params.substring(0, firstSpace).toInt();
+      int h = params.substring(firstSpace + 1, secondSpace).toInt();
+      int s = params.substring(secondSpace + 1, thirdSpace).toInt();
+      int v = params.substring(thirdSpace + 1, fourthSpace > 0 ? fourthSpace : params.length()).toInt();
+
+      String name = "";
+      if (fourthSpace > 0) {
+        name = params.substring(fourthSpace + 1);
+      }
+
+      setColorHSV(slot, h, s, v, name.c_str());
+    } else {
+      Serial.println("ERROR: Format: COLOR HSV <slot> <h> <s> <v> [name]");
+    }
+  }
+  else if (cmd.startsWith("COLOR RESET ")) {
+    int slot = cmd.substring(12).toInt();
+    resetColor(slot);
+  }
+  else if (cmd == "COLOR RESET ALL") {
+    resetAllColors();
+  }
   else {
     Serial.println("Unknown config command");
     Serial.println("Available commands:");
@@ -442,6 +724,11 @@ void ConfigManager::processConfigCommand(String cmd) {
     Serial.println("  SEQ SAVE S<n> - Save sequence");
     Serial.println("  SEQ DEL S<n> - Delete sequence");
     Serial.println("  SEQ LIST - List all sequences");
+    Serial.println("  COLOR RGB <slot> <r> <g> <b> [name] - Set color RGB");
+    Serial.println("  COLOR HSV <slot> <h> <s> <v> [name] - Set color HSV");
+    Serial.println("  COLOR LIST - List all colors");
+    Serial.println("  COLOR RESET <slot> - Reset color to default");
+    Serial.println("  COLOR RESET ALL - Reset all colors");
     Serial.println("  SAVE - Save config to flash");
     Serial.println("  RESET - Reset to defaults");
   }

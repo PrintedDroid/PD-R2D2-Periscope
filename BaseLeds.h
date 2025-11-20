@@ -4,19 +4,9 @@
 #include <FastLED.h>
 #include "Constants.h"
 
-// Color palette for all LEDs
-const CRGB colorMap[] = {
-  CRGB::Red,      // 0
-  CRGB::Yellow,   // 1
-  CRGB::Green,    // 2
-  CRGB::Cyan,     // 3
-  CRGB::Blue,     // 4
-  CRGB::Magenta,  // 5
-  CRGB::Orange,   // 6
-  CRGB::Purple,   // 7
-  CRGB::White,    // 8
-  CRGB::Pink      // 9
-};
+// Color palette for all LEDs (defined in main .ino file, managed by Config)
+#define MAX_COLOR_SLOTS 20
+extern CRGB colorMap[MAX_COLOR_SLOTS];
 
 class BaseLeds {
   public:
