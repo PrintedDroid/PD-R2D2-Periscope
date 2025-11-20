@@ -475,7 +475,7 @@ void processSequence(int seq) {
       processCommand("M185");   // Main pulse white medium
       processCommand("T185");   // Top left run white medium
       processCommand("S185");   // Sides pulse white medium
-      processCommand("B1005");  // Bottom superscan red medium (was Effect 1, now Effect 10)
+      processCommand("B105");   // Bottom superscan red medium (ORIGINAL Effect 1)
       processCommand("K105");   // Back random red/blue medium
       break;
     case 1: // Party mode
@@ -486,7 +486,7 @@ void processSequence(int seq) {
       processCommand("M188");   // Main pulse white fast
       processCommand("T888");   // Top pulse white fast
       processCommand("S188");   // Sides pulse white fast
-      processCommand("B1008");  // Bottom superscan white fast (was Effect 1, now Effect 10)
+      processCommand("B188");   // Bottom simple white fast (ORIGINAL Effect 3)
       processCommand("K388");   // Back all on white fast
       break;
     case 3: // Communication Mode
@@ -514,20 +514,20 @@ void processSequence(int seq) {
       processCommand("M609");   // Main split red fast
       processCommand("S209");   // Sides run red fast
       processCommand("T1109");  // Top Knight Rider red fast
-      processCommand("B1009");  // Bottom superscan red fast (was Effect 1, now Effect 10)
+      processCommand("B109");   // Bottom superscan red fast
       break;
     case 7: // Searchlight scanning - ALL WHITE
       processCommand("M388");   // Main all on white fast
       processCommand("T188");   // Top all on white fast
       processCommand("S188");   // Sides all on white fast
-      processCommand("B1008");  // Bottom superscan white fast (was Effect 1, now Effect 10)
+      processCommand("B288");   // Bottom all on white fast
       processCommand("K388");   // Back all on white fast
       break;
     case 8: // Stealth search mode
       processCommand("M1404");  // Main circle chase red very slow
       processCommand("T900");   // Top bounce red very slow
       processCommand("S204");   // Sides run single red slow
-      processCommand("B200");   // Bottom simple red slow (Effect 3->2)
+      processCommand("B300");   // Bottom simple red slow
       processCommand("K0");     // Back off
       break;
     case 9: // Dive
@@ -557,7 +557,7 @@ void processSequence(int seq) {
       delay(500);
       processCommand("S122");   // Sides pulse green slow
       delay(500);
-      processCommand("B222");   // Bottom simple green slow (Effect 3->2)
+      processCommand("B122");   // Bottom simple green slow
       processCommand("K322");   // Back all on green slow
       break;
     case 13: // Fire
@@ -592,7 +592,7 @@ void processSequence(int seq) {
       processCommand("K205");   // Back random red medium
       break;
     case 18: // Scan Complete
-      processCommand("B322");   // Bottom scan green medium (Effect 2->3)
+      processCommand("B222");   // Bottom scan green medium
       processCommand("S625");   // Sides breathe green medium
       processCommand("T325");   // Top to center green medium
       processCommand("M1525");  // Main center expand green medium
