@@ -355,3 +355,61 @@ void BottomLeds::snake()
     this->idx = 0;
   }
 }
+
+// ============================================
+// Override Common Effects for Hardware Abstraction
+// ============================================
+
+void BottomLeds::commonPulseAll() {
+  if (!validatePointers()) return;
+
+  CHSV hsv = rgb2hsv_approximate(getCurrentColor());
+  hsv.v = this->pulse;
+
+  // Use hardware abstraction to set all logical positions
+  int logicalCount = getLogicalCount();
+  for(int i = 0; i < logicalCount; i++) {
+    CRGB color = hsv;
+    setPosition(i, color);
+  }
+
+  this->pulse += this->pulse_offset;
+  if (this->pulse >= LedConstants::PULSE_VALUE_MAX || this->pulse <= LedConstants::PULSE_VALUE_MIN) {
+    this->pulse_offset = -(this->pulse_offset);
+  }
+}
+
+void BottomLeds::commonStrobe() {
+  if (!validatePointers()) return;
+
+  CRGB color = this->strobe_ind ? getCurrentColor() : CRGB::Black;
+
+  // Use hardware abstraction to set all logical positions
+  int logicalCount = getLogicalCount();
+  for(int i = 0; i < logicalCount; i++) {
+    setPosition(i, color);
+  }
+
+  this->strobe_ind = !this->strobe_ind;
+}
+
+void BottomLeds::commonSparkle(uint8_t threshold) {
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::FADE_AMOUNT_LIGHT);
+
+  if (random8() < threshold) {
+    int logicalPos = random8(getLogicalCount());
+    setPosition(logicalPos, getCurrentColor());
+  }
+}
+
+void BottomLeds::safeFillSolid(CRGB color) {
+  if (!validatePointers()) return;
+
+  // Use hardware abstraction to fill all logical positions
+  int logicalCount = getLogicalCount();
+  for(int i = 0; i < logicalCount; i++) {
+    setPosition(i, color);
+  }
+}
