@@ -39,6 +39,14 @@ BottomLeds::BottomLeds(CRGB *leds, int numleds)
         Serial.println(F("WARNING: BottomLeds - NumLEDs should be even (pairs) for V2 hardware"));
       #endif
     }
+    // Debug: Print configuration
+    Serial.print(F("BottomLeds V2: numleds="));
+    Serial.print(numleds);
+    Serial.print(F(", logical positions="));
+    Serial.println(getLogicalCount());
+  #else
+    Serial.print(F("BottomLeds V1: numleds="));
+    Serial.println(numleds);
   #endif
 }
 
@@ -76,6 +84,15 @@ void BottomLeds::setPosition(int position, CRGB color) {
     if (isValidIndex(led2)) {
       this->leds[led2] = color;
     }
+    // Debug output (can be removed later)
+    /*
+    Serial.print("setPos ");
+    Serial.print(position);
+    Serial.print(" -> LEDs ");
+    Serial.print(led1);
+    Serial.print(",");
+    Serial.println(led2);
+    */
   #else
     // V1: 8 individual LEDs - set single LED
     if (isValidIndex(position)) {
@@ -159,9 +176,10 @@ void BottomLeds::simple()
 {
   if (!validatePointers()) return;
 
-  safeFillSolid(CRGB::Black);
+  // Clear all LEDs
+  fill_solid(this->leds, this->numleds, CRGB::Black);
 
-  // Light one position at a time
+  // Light one pair at a time
   int logicalPos = this->idx % getLogicalCount();
   setPosition(logicalPos, getCurrentColor());
 
@@ -175,17 +193,18 @@ void BottomLeds::scan()
 {
   if (!validatePointers()) return;
 
-  safeFillSolid(CRGB::Black);
+  // Clear all LEDs
+  fill_solid(this->leds, this->numleds, CRGB::Black);
 
-  // Light two adjacent pairs (creates scanning effect)
-  int logicalPos1 = this->idx % getLogicalCount();
-  int logicalPos2 = (this->idx + 1) % getLogicalCount();
+  // Show 2 adjacent pairs (like original showed 2 adjacent LEDs)
+  int logicalCount = getLogicalCount();
+  if (this->idx < logicalCount - 1) {
+    setPosition(this->idx, getCurrentColor());
+    setPosition(this->idx + 1, getCurrentColor());
+  }
 
-  setPosition(logicalPos1, getCurrentColor());
-  setPosition(logicalPos2, getCurrentColor());
-
-  this->idx++;
-  if (this->idx >= getLogicalCount()) {
+  this->idx += 2;
+  if (this->idx >= logicalCount) {
     this->idx = 0;
   }
 }
@@ -194,36 +213,46 @@ void BottomLeds::superscan()
 {
   if (!validatePointers()) return;
 
-  safeFillSolid(CRGB::Black);
+  // Clear all LEDs
+  fill_solid(this->leds, this->numleds, CRGB::Black);
   CRGB color = getCurrentColor();
 
-  // Special superscan pattern for 6 logical positions
-  // Creates expanding/contracting patterns
-  switch (this->idx % 5) {
+  // Original pattern adapted for 6 logical positions (pairs)
+  // Original for 8 LEDs: 0,1,6,7 then 2,3,4,5 then variations
+  // For 6 pairs: outer pairs, inner pairs, variations
+  switch (this->idx) {
     case 0: // Outer pairs (0 & 5)
       setPosition(0, color);
       setPosition(5, color);
       break;
-    case 1: // Middle-outer pairs (1 & 4)
+    case 1: // Inner 4 pairs (1,2,3,4)
       setPosition(1, color);
+      setPosition(2, color);
+      setPosition(3, color);
       setPosition(4, color);
       break;
-    case 2: // Inner pairs (2 & 3)
+    case 2: // Middle pairs (2 & 3)
       setPosition(2, color);
       setPosition(3, color);
       break;
-    case 3: // Back to middle-outer
+    case 3: // Next to middle (1 & 4)
       setPosition(1, color);
       setPosition(4, color);
       break;
-    case 4: // Back to outer
-      setPosition(0, color);
-      setPosition(5, color);
+    case 4: // Middle again
+      setPosition(2, color);
+      setPosition(3, color);
+      break;
+    case 5: // Inner 4 again
+      setPosition(1, color);
+      setPosition(2, color);
+      setPosition(3, color);
+      setPosition(4, color);
       break;
   }
 
   this->idx++;
-  if (this->idx >= 10) { // Cycle through pattern twice
+  if (this->idx >= 6) {
     this->idx = 0;
   }
 }
@@ -310,7 +339,7 @@ void BottomLeds::alternateRows()
 {
   if (!validatePointers()) return;
 
-  safeFillSolid(CRGB::Black);
+  fill_solid(this->leds, this->numleds, CRGB::Black);
   CRGB color = getCurrentColor();
 
   // Alternate between two groups of 3 pairs each
