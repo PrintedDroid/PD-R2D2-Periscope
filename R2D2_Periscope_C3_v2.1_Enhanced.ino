@@ -86,6 +86,11 @@
 // Uncomment the following line to enable Uppity Spinner Mode
 // #define UPPITY_SPINNER_MODE
 
+// Bottom LED Hardware Configuration
+// Uncomment ONE of the following to match your hardware:
+#define BOTTOM_LED_V2  // New board: 12 LEDs in pairs (default)
+// #define BOTTOM_LED_V1  // Old board: 8 individual LEDs
+
 // Uppity Spinner Sequence Selection (only used in UPPITY_SPINNER_MODE)
 #define UPPITY_STATE_0_SEQUENCE -1  // -1 means all off, 0-20 means sequence Q0-Q20
 #define UPPITY_STATE_2_SEQUENCE 4   // Police lights (Sequence 4)
@@ -130,7 +135,14 @@
 #define MAIN_NUMLEDS 9
 #define RIGHT_NUMLEDS 9
 #define LEFT_NUMLEDS 9
-#define BOTTOM_NUMLEDS 8
+
+// Bottom LED count based on hardware version
+#ifdef BOTTOM_LED_V2
+  #define BOTTOM_NUMLEDS 12  // New: 12 LEDs in pairs (1&2, 3&4, 5&6, 7&8, 9&10, 11&12) = 6 logical positions
+#else
+  #define BOTTOM_NUMLEDS 8   // Old: 8 individual LEDs
+#endif
+
 #define TOP_NUMLEDS 7
 #define BACK_NUMLEDS 3
 
