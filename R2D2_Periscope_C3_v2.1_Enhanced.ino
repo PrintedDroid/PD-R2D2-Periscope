@@ -200,6 +200,15 @@ void setup() {
   Serial.println("Starting Enhanced R2D2 Periscope - Serial Mode (Final Correction)");
   Serial.println("Commands: [Target][Effect][Color][Speed]");
   Serial.println("Example: M1285 = Main LEDs, Effect 12, White, Speed 5");
+
+  // Debug: Show hardware configuration
+  Serial.print("Bottom LEDs: ");
+  Serial.print(BOTTOM_NUMLEDS);
+  #ifdef BOTTOM_LED_V2
+    Serial.println(" (V2 - 12 LEDs in 6 pairs)");
+  #else
+    Serial.println(" (V1 - 8 individual LEDs)");
+  #endif
 #else
   // Configure Uppity Spinner pins
   pinMode(UPPITY_PIN_A, INPUT_PULLUP);

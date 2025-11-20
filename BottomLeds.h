@@ -1,6 +1,11 @@
 #ifndef BOTTOM_H
 #define BOTTOM_H
 
+// Hardware Configuration
+// Choose ONE of the following to match your hardware:
+#define BOTTOM_LED_V2  // New board: 12 LEDs in pairs (1&2, 3&4, 5&6, 7&8, 9&10, 11&12) = 6 logical positions
+// #define BOTTOM_LED_V1  // Old board: 8 individual LEDs
+
 #include "BaseLeds.h"
 
 class BottomLeds: public BaseLeds {
