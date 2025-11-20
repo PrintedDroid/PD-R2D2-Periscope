@@ -52,7 +52,7 @@ void ConfigManager::setBottomLedCount(uint8_t count) {
 }
 
 void ConfigManager::setStartupSequence(int8_t seq) {
-  if (seq >= -1 && seq <= 20) {
+  if (seq >= -1 && seq <= 30) {
     config.startupSequence = seq;
     Serial.print("Startup sequence set to: ");
     if (seq == -1) {
@@ -62,7 +62,7 @@ void ConfigManager::setStartupSequence(int8_t seq) {
       Serial.println(seq);
     }
   } else {
-    Serial.println("ERROR: Sequence must be -1 (none) or 0-20");
+    Serial.println("ERROR: Sequence must be -1 (none) or 0-30");
   }
 }
 

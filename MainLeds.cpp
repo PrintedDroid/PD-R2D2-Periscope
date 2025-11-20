@@ -13,6 +13,7 @@ MainLeds::MainLeds(CRGB *leds, int numleds)
   this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
   this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
   this->strobe_ind = false;
+  this->theater_chase_q = 0;
   this->currentEffect = 0;
   this->currentColor = LedConstants::DEFAULT_COLOR_WHITE;
   this->autoChange = false;
@@ -130,6 +131,18 @@ void MainLeds::update(unsigned long currentTime)
       break;
     case 16: // Spiral Out
       this->spiralOut();
+      break;
+    case 17: // Twinkle
+      commonTwinkle();
+      break;
+    case 18: // Theater Chase (common)
+      commonTheaterChase();
+      break;
+    case 19: // Bounce with Trail
+      commonBounceWithTrail();
+      break;
+    case 20: // Color Gradient
+      commonColorGradient();
       break;
   }
 

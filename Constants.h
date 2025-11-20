@@ -58,11 +58,11 @@ namespace LedConstants {
     constexpr uint8_t DEFAULT_COLOR_BLUE = 4;
     constexpr uint8_t MAX_COLOR_INDEX = 9;
 
-    // Effect limits
-    constexpr uint8_t MAX_EFFECT_MAIN = 17;
-    constexpr uint8_t MAX_EFFECT_SIDE = 8;
-    constexpr uint8_t MAX_EFFECT_TOP = 12;
-    constexpr uint8_t MAX_EFFECT_BOTTOM = 10;
+    // Effect limits (updated to include new diverse effects)
+    constexpr uint8_t MAX_EFFECT_MAIN = 21;    // 0-20 (added Twinkle, TheaterChase, Bounce, Gradient)
+    constexpr uint8_t MAX_EFFECT_SIDE = 14;    // 0-13 (added 4 new effects)
+    constexpr uint8_t MAX_EFFECT_TOP = 16;     // 0-15 (added 4 new effects)
+    constexpr uint8_t MAX_EFFECT_BOTTOM = 14;  // 0-13 (added 4 new effects)
     constexpr uint8_t MAX_EFFECT_BACK = 6;
 
     // Random thresholds

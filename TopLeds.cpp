@@ -13,6 +13,7 @@ TopLeds::TopLeds(CRGB *leds, int numleds)
   this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
   this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
   this->strobe_ind = false;
+  this->theater_chase_q = 0;
   this->currentEffect = 0;
   this->currentColor = LedConstants::DEFAULT_COLOR_BLUE;
   this->autoChange = false;
@@ -103,6 +104,18 @@ void TopLeds::update(unsigned long currentTime)
       break;
     case 11: // Knight Rider
       this->knightRider();
+      break;
+    case 12: // Twinkle
+      commonTwinkle();
+      break;
+    case 13: // Theater Chase (common)
+      commonTheaterChase();
+      break;
+    case 14: // Bounce with Trail
+      commonBounceWithTrail();
+      break;
+    case 15: // Color Gradient
+      commonColorGradient();
       break;
   }
 

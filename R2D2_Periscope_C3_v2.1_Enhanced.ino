@@ -460,6 +460,11 @@ void printStatus() {
 
   Serial.println(F("\n--- Sequences ---"));
   Serial.println(F("  Q0-Q20 - Built-in sequences"));
+  Serial.println(F("  Q21-Q30 - Thematic sequences"));
+  Serial.println(F("    Q21=Happy Q22=Angry Q23=Scared"));
+  Serial.println(F("    Q24=Boot Q25=Shutdown Q26=Radar"));
+  Serial.println(F("    Q27=Celebration Q28=Sleep"));
+  Serial.println(F("    Q29=Gradient Q30=Theater"));
   Serial.println(F("  S1-S10 - Custom sequences"));
   Serial.println(F("  SEQ LIST - Show custom sequences"));
 
@@ -740,11 +745,113 @@ void processSequence(int seq) {
       currentDemoSequence = 0;
       lastDemoSequenceChange = millis();
       processSequence(0); // Start with first sequence
-      
+
 #ifndef UPPITY_SPINNER_MODE
       Serial.println("Demo mode: Cycling through all sequences");
       Serial.println("15 seconds per sequence");
 #endif
+      break;
+
+    // ========================================
+    // NEW THEMATIC SEQUENCES (Q21-Q28)
+    // ========================================
+
+    case 21: // Happy - Bright, energetic, multi-color
+      processCommand("M1789");   // Main twinkle white fast
+      processCommand("T1389");   // Top theater chase white fast
+      processCommand("S1089");   // Sides twinkle white fast
+      processCommand("B1089");   // Bottom twinkle white fast
+      processCommand("K289");    // Back all on yellow fast
+      break;
+
+    case 22: // Angry - Aggressive red strobing
+      processCommand("M902");    // Main strobe red slow
+      processCommand("T905");    // Top strobe red medium
+      processCommand("S905");    // Sides strobe red medium
+      processCommand("B905");    // Bottom strobe red medium
+      processCommand("K905");    // Back strobe red medium
+      break;
+
+    case 23: // Scared - Nervous, quick, erratic
+      processCommand("M1789");   // Main twinkle white fast
+      processCommand("T489");    // Top sparkle white fast
+      processCommand("S889");    // Sides sparkle white fast
+      processCommand("B489");    // Bottom random white fast
+      processCommand("K489");    // Back random white fast
+      break;
+
+    case 24: // Boot Sequence - Realistic system startup
+      processCommand("X");       // All off
+      delay(500);
+      processCommand("M308");    // Main center on white
+      delay(300);
+      processCommand("T185");    // Top leftrun white medium
+      delay(200);
+      processCommand("S285");    // Sides run white medium
+      delay(200);
+      processCommand("B205");    // Bottom scan red medium
+      delay(500);
+      processCommand("K285");    // Back all on red medium
+      delay(300);
+      processCommand("M185");    // Main pulse white medium
+      break;
+
+    case 25: // Shutdown - Gradual power down
+      processCommand("M185");    // Start with pulse
+      processCommand("T185");
+      processCommand("S185");
+      processCommand("B105");
+      processCommand("K105");
+      delay(1000);
+      processCommand("K0");      // Back off
+      delay(500);
+      processCommand("B0");      // Bottom off
+      delay(500);
+      processCommand("S0");      // Sides off
+      delay(500);
+      processCommand("T0");      // Top off
+      delay(500);
+      processCommand("M0");      // Main off
+      break;
+
+    case 26: // Radar Scan - Rotating scan effect
+      processCommand("M1435");   // Main circle chase cyan slow
+      processCommand("T285");    // Top left-right white medium
+      processCommand("S385");    // Sides run 2 cyan medium
+      processCommand("B235");    // Bottom scan cyan slow
+      processCommand("K335");    // Back all on cyan slow
+      break;
+
+    case 27: // Celebration - Enhanced party mode with new effects
+      processCommand("M1989");   // Main bounce trail white fast
+      processCommand("T1489");   // Top bounce trail white fast
+      processCommand("S1289");   // Sides bounce trail white fast
+      processCommand("B1289");   // Bottom bounce trail white fast
+      processCommand("K1279");   // Back rainbow fast
+      break;
+
+    case 28: // Sleep Mode - Gentle breathing
+      processCommand("M103");    // Main pulse red slow
+      processCommand("T103");    // Top pulse red slow
+      processCommand("S603");    // Sides breathe red slow
+      processCommand("B103");    // Bottom pulse red slow
+      processCommand("K103");    // Back pulse red slow
+      break;
+
+    case 29: // Color Gradient Demo - Show off gradient effect
+      processCommand("M2085");   // Main color gradient medium
+      processCommand("T1585");   // Top color gradient medium
+      processCommand("S1385");   // Sides color gradient medium
+      processCommand("B1385");   // Bottom color gradient medium
+      processCommand("K1275");   // Back rainbow medium
+      break;
+
+    case 30: // Theater Mode - All theater chase synchronized
+      processCommand("M1885");   // Main theater chase white medium
+      processCommand("T1385");   // Top theater chase white medium
+      processCommand("S1185");   // Sides theater chase white medium
+      processCommand("B1185");   // Bottom theater chase white medium
+      processCommand("K388");    // Back all on white fast
       break;
   }
 }
