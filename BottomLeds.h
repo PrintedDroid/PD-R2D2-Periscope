@@ -12,7 +12,7 @@ class BottomLeds: public BaseLeds {
     // Override common effects to use hardware abstraction
     void commonPulseAll();
     void commonStrobe();
-    void commonSparkle(uint8_t threshold = LedConstants::RANDOM_THRESHOLD_HIGH);
+    void commonSparkle(uint8_t threshold = LedConstants::STROBE_THRESHOLD_SPARKLE);
     void safeFillSolid(CRGB color);
 
   private:
