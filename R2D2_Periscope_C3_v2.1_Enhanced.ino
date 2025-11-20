@@ -472,139 +472,139 @@ void processSequence(int seq) {
   
   switch(seq) {
     case 0: // Original R2D2 startup
-      processCommand("M285");   // Main pulse white medium
-      processCommand("T285");   // Top left run white medium
-      processCommand("S285");   // Sides pulse white medium
-      processCommand("B1105");  // Bottom superscan red medium
-      processCommand("K205");   // Back random red/blue medium
+      processCommand("M185");   // Main pulse white medium
+      processCommand("T185");   // Top left run white medium
+      processCommand("S185");   // Sides pulse white medium
+      processCommand("B1005");  // Bottom superscan red medium (was Effect 1, now Effect 10)
+      processCommand("K105");   // Back random red/blue medium
       break;
     case 1: // Party mode
       processCommand("A99");    // All rainbow/auto effects
-      processCommand("M13");    // Main rainbow specifically
+      processCommand("M12");    // Main rainbow specifically
       break;
     case 2: // Bright Pulse - Maximum brightness white pulse
-      processCommand("M288");   // Main pulse white fast
-      processCommand("T988");   // Top pulse white fast
-      processCommand("S288");   // Sides pulse white fast
-      processCommand("B288");   // Bottom simple white fast
-      processCommand("K488");   // Back all on white fast
+      processCommand("M188");   // Main pulse white fast
+      processCommand("T888");   // Top pulse white fast
+      processCommand("S188");   // Sides pulse white fast
+      processCommand("B1008");  // Bottom superscan white fast (was Effect 1, now Effect 10)
+      processCommand("K388");   // Back all on white fast
       break;
     case 3: // Communication Mode
-      processCommand("S689");   // Sides strobe white very fast
-      processCommand("T789");   // Top chase white very fast
-      processCommand("M1049");  // Main strobe blue very fast
-      processCommand("B589");   // Bottom random white very fast
-      processCommand("K689");   // Back sparkle white very fast
+      processCommand("S589");   // Sides strobe white very fast
+      processCommand("T689");   // Top chase white very fast
+      processCommand("M949");   // Main strobe blue very fast
+      processCommand("B489");   // Bottom random white very fast
+      processCommand("K589");   // Back sparkle white very fast
       break;
     case 4: // Police lights
-      processCommand("L609");   // Left strobe red fast
-      processCommand("R649");   // Right strobe blue fast
-      processCommand("T349");   // Top chase blue fast
-      processCommand("B509");   // Bottom random red fast
-      processCommand("M1089");  // Main strobe white fast
+      processCommand("L509");   // Left strobe red fast
+      processCommand("R549");   // Right strobe blue fast
+      processCommand("T249");   // Top chase blue fast
+      processCommand("B409");   // Bottom random red fast
+      processCommand("M989");   // Main strobe white fast
       break;
     case 5: // Alarm/Warning
-      processCommand("M1003");  // Main strobe red medium
-      processCommand("T1005");  // Top bounce red medium
-      processCommand("S605");   // Sides strobe red medium
-      processCommand("B905");   // Bottom alternate rows red medium
-      processCommand("K205");   // Back random red medium
+      processCommand("M903");   // Main strobe red medium
+      processCommand("T905");   // Top bounce red medium
+      processCommand("S505");   // Sides strobe red medium
+      processCommand("B805");   // Bottom alternate rows red medium
+      processCommand("K105");   // Back random red medium
       break;
     case 6: // Knight Rider
-      processCommand("M709");   // Main split red fast
-      processCommand("S309");   // Sides run red fast
-      processCommand("T1209");  // Top Knight Rider red fast
-      processCommand("B209");   // Bottom superscan red fast
+      processCommand("M609");   // Main split red fast
+      processCommand("S209");   // Sides run red fast
+      processCommand("T1109");  // Top Knight Rider red fast
+      processCommand("B1009");  // Bottom superscan red fast (was Effect 1, now Effect 10)
       break;
     case 7: // Searchlight scanning - ALL WHITE
-      processCommand("M488");   // Main all on white fast
-      processCommand("T288");   // Top all on white fast
-      processCommand("S288");   // Sides all on white fast
-      processCommand("B388");   // Bottom all on white fast
-      processCommand("K488");   // Back all on white fast
+      processCommand("M388");   // Main all on white fast
+      processCommand("T188");   // Top all on white fast
+      processCommand("S188");   // Sides all on white fast
+      processCommand("B1008");  // Bottom superscan white fast (was Effect 1, now Effect 10)
+      processCommand("K388");   // Back all on white fast
       break;
     case 8: // Stealth search mode
-      processCommand("M1504");  // Main circle chase red very slow
-      processCommand("T1000");  // Top bounce red very slow
-      processCommand("S304");   // Sides run single red slow
-      processCommand("B400");   // Bottom simple red slow
+      processCommand("M1404");  // Main circle chase red very slow
+      processCommand("T900");   // Top bounce red very slow
+      processCommand("S204");   // Sides run single red slow
+      processCommand("B200");   // Bottom simple red slow (Effect 3->2)
       processCommand("K0");     // Back off
       break;
     case 9: // Dive
-      processCommand("M1743");  // Main spiral out blue slow
-      processCommand("T743");   // Top chase blue slow
-      processCommand("S743");   // Sides breathe blue slow
-      processCommand("B1043");  // Bottom snake blue slow
-      processCommand("K343");   // Back random blue slow
+      processCommand("M1643");  // Main spiral out blue slow
+      processCommand("T643");   // Top chase blue slow
+      processCommand("S643");   // Sides breathe blue slow
+      processCommand("B943");   // Bottom snake blue slow
+      processCommand("K243");   // Back random blue slow
       break;
     case 10: // Surface
-      processCommand("M1633");  // Main center expand cyan medium
-      processCommand("T433");   // Top to center cyan medium
-      processCommand("S735");   // Sides breathe cyan medium
-      processCommand("B835");   // Bottom wave cyan medium
-      processCommand("K635");   // Back sparkle cyan medium
+      processCommand("M1533");  // Main center expand cyan medium
+      processCommand("T333");   // Top to center cyan medium
+      processCommand("S635");   // Sides breathe cyan medium
+      processCommand("B735");   // Bottom wave cyan medium
+      processCommand("K535");   // Back sparkle cyan medium
       break;
     case 11: // Calm blue
-      processCommand("A743");   // All breathe blue slow
-      processCommand("M1140");  // Main smooth pulse blue very slow
+      processCommand("A643");   // All breathe blue slow
+      processCommand("M1040");  // Main smooth pulse blue very slow
       break;
     case 12: // Boot-up/System Check
       processCommand("X");      // All off first
       delay(500);
-      processCommand("T222");   // Top left run green slow
+      processCommand("T122");   // Top left run green slow
       delay(500);
-      processCommand("M222");   // Main pulse green slow
+      processCommand("M122");   // Main pulse green slow
       delay(500);
-      processCommand("S222");   // Sides pulse green slow
+      processCommand("S122");   // Sides pulse green slow
       delay(500);
-      processCommand("B222");   // Bottom simple green slow
-      processCommand("K422");   // Back all on green slow
+      processCommand("B222");   // Bottom simple green slow (Effect 3->2)
+      processCommand("K322");   // Back all on green slow
       break;
     case 13: // Fire
-      processCommand("M14");    // Main fire
-      processCommand("S8");     // Sides fire
-      processCommand("B562");   // Bottom random orange slow
-      processCommand("K562");   // Back alternate orange slow
+      processCommand("M13");    // Main fire
+      processCommand("S7");     // Sides fire
+      processCommand("B462");   // Bottom random orange slow
+      processCommand("K462");   // Back alternate orange slow
       break;
-      
+
     case 14: // Celebration/Victory
       processCommand("A99");    // All auto-change
       break;
     case 15: // Energy Charging
-      processCommand("B847");   // Bottom wave blue fast
-      processCommand("S747");   // Sides breathe blue fast
-      processCommand("T1147");  // Top fill from center blue fast
-      processCommand("M1147");  // Main smooth pulse blue fast
-      processCommand("K447");   // Back all on blue fast
+      processCommand("B747");   // Bottom wave blue fast
+      processCommand("S647");   // Sides breathe blue fast
+      processCommand("T1047");  // Top fill from center blue fast
+      processCommand("M1047");  // Main smooth pulse blue fast
+      processCommand("K347");   // Back all on blue fast
       break;
     case 16: // Hyperdrive/Warp
-      processCommand("M1789");  // Main spiral out white very fast
-      processCommand("T789");   // Top chase white very fast
-      processCommand("S589");   // Sides cw run 4 white very fast
-      processCommand("B789");   // Bottom comet white very fast
-      processCommand("K689");   // Back sparkle white very fast
+      processCommand("M1689");  // Main spiral out white very fast
+      processCommand("T689");   // Top chase white very fast
+      processCommand("S489");   // Sides cw run 4 white very fast
+      processCommand("B689");   // Bottom comet white very fast
+      processCommand("K589");   // Back sparkle white very fast
       break;
     case 17: // Malfunction - RED/YELLOW alternating
-      processCommand("M1005");  // Main strobe red medium
-      processCommand("T515");   // Top sparkle yellow medium
-      processCommand("S605");   // Sides strobe red medium
-      processCommand("B515");   // Bottom random yellow medium
-      processCommand("K305");   // Back random red medium
+      processCommand("M905");   // Main strobe red medium
+      processCommand("T415");   // Top sparkle yellow medium
+      processCommand("S505");   // Sides strobe red medium
+      processCommand("B415");   // Bottom random yellow medium
+      processCommand("K205");   // Back random red medium
       break;
     case 18: // Scan Complete
-      processCommand("B322");   // Bottom scan green medium
-      processCommand("S725");   // Sides breathe green medium
-      processCommand("T425");   // Top to center green medium
-      processCommand("M1625");  // Main center expand green medium
+      processCommand("B322");   // Bottom scan green medium (Effect 2->3)
+      processCommand("S625");   // Sides breathe green medium
+      processCommand("T325");   // Top to center green medium
+      processCommand("M1525");  // Main center expand green medium
       delay(500);
-      processCommand("A222");   // All pulse green slow
+      processCommand("A122");   // All pulse green slow
       break;
     case 19: // Sonar Ping
-      processCommand("M1634");  // Main center expand cyan slow
-      processCommand("T1134");  // Top fill from center cyan slow
-      processCommand("S734");   // Sides breathe cyan slow
-      processCommand("B934");   // Bottom alternate rows cyan slow
-      processCommand("K434");   // Back all on cyan slow
+      processCommand("M1534");  // Main center expand cyan slow
+      processCommand("T1034");  // Top fill from center cyan slow
+      processCommand("S634");   // Sides breathe cyan slow
+      processCommand("B834");   // Bottom alternate rows cyan slow
+      processCommand("K334");   // Back all on cyan slow
       break;
     case 20: // Auto demo - Cycle through ALL sequences
       inDemoMode = true;
