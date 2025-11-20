@@ -20,6 +20,10 @@ class BottomLeds: public BaseLeds {
     void alternateRows();
     void snake();
 
+    // Helper functions for hardware abstraction
+    void setPosition(int position, CRGB color);  // Hardware-agnostic position setter
+    int getLogicalCount() const;                 // Returns logical position count
+
     // Member variable for alternateRows
     bool alternateRowsPhase;
 };

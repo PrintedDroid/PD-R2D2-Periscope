@@ -60,11 +60,11 @@ lib_deps =
 - **6x WS2812B LED Strips** - Addressable RGB LEDs
   - Main: 9 LEDs
   - Top: 7 LEDs
-  - Bottom: 8 LEDs
+  - Bottom: 12 LEDs (6 pairs - LEDs controlled in pairs for uniform lighting)
   - Left Side: 9 LEDs
   - Right Side: 9 LEDs
   - Back: 3 LEDs
-  - **Total: 45 LEDs**
+  - **Total: 49 LEDs**
 - **5V Power Supply** - Adequate for all LEDs (minimum 3A recommended)
 
 ### Optional Components
@@ -104,16 +104,16 @@ GPIO20 → RX (Uppity Spinner Pin A / Serial RX)
 ## 🔌 Power Requirements
 
 - **Main Supply**: 5V/3A minimum
-- **LEDs**: ~2700mA at full brightness (45 LEDs × 60mA)
+- **LEDs**: ~2940mA at full brightness (49 LEDs × 60mA)
 - **ESP32-C3**: 3.3V internal regulation (~200mA)
 - **Status LED**: Minimal current (<1mA)
 
 ### Power Calculation:
 ```
-45 LEDs × 60mA (max per LED) = 2700mA
+49 LEDs × 60mA (max per LED) = 2940mA
 ESP32-C3 overhead: 200mA
-Total maximum: ~3A at 5V
-Typical operation (brightness 80): ~1.5-2A
+Total maximum: ~3.2A at 5V
+Typical operation (brightness 80): ~1.6-2.2A
 ```
 
 **⚠️ Safety Warning**: Ensure adequate current capacity and proper fusing for safety.
@@ -227,7 +227,7 @@ OFF     = Disable all LEDs
 15. Center expand
 16. Spiral out
 
-**Top/Bottom/Side LEDs (T/B/S/L/R) - 11 Effects:**
+**Top LEDs (T) - 11 Effects:**
 1. Pulse
 2. Run
 3. To center
@@ -238,7 +238,29 @@ OFF     = Disable all LEDs
 8. Alternate rows
 9. Bounce
 10. Fill from center
-11. Knight Rider (Top only)
+11. Knight Rider
+
+**Bottom LEDs (B) - 10 Effects:**
+1. Pulse
+2. Simple scan (1 pair)
+3. Scan (2 pairs)
+4. Random
+5. Strobe
+6. Comet (with tail)
+7. Wave (phase offset)
+8. Alternate rows (3+3 pairs)
+9. Snake (3 pairs)
+10. Superscan (expand/contract pattern)
+
+**Side LEDs (S/L/R) - 8 Effects:**
+1. Pulse
+2. Run
+3. Random sparkle
+4. Strobe
+5. Breathe
+6. Fire
+7. Rainbow
+8. Sparkle
 
 **Back LEDs (K) - 6 Effects:**
 1. Simple on
@@ -378,6 +400,27 @@ Cyan center expanding pulses.
 Cycles through ALL sequences (0-19) every 15 seconds. Perfect for demonstrations!
 
 ## 🔧 Configuration
+
+### Hardware Version Selection
+
+The sketch supports both old and new bottom LED hardware. Edit in sketch:
+
+```cpp
+// Uncomment ONE of the following to match your hardware:
+#define BOTTOM_LED_V2  // New board: 12 LEDs in pairs (default)
+// #define BOTTOM_LED_V1  // Old board: 8 individual LEDs
+```
+
+**Bottom LED V2 (New - Default):**
+- 12 physical LEDs controlled in 6 pairs
+- LEDs 1&2, 3&4, 5&6, 7&8, 9&10, 11&12
+- Provides uniform lighting across pairs
+- Total: 49 LEDs in periscope
+
+**Bottom LED V1 (Old):**
+- 8 individual LEDs
+- Independent control
+- Total: 45 LEDs in periscope
 
 ### Brightness Adjustment
 
@@ -531,14 +574,14 @@ Q11     (Calm blue - smooth pulse all LEDs)
 
 | Specification | Value |
 |---------------|-------|
-| Total LEDs | 45 |
+| Total LEDs | 49 (12 bottom in 6 pairs) |
 | Refresh Rate | ~60 FPS |
 | Effect Count | 40+ (across all groups) |
 | Sequences | 21 (0-20) |
 | Colors | 10 predefined |
 | Speed Levels | 10 (0-9) |
 | Control Modes | 2 (Serial + Uppity) |
-| Power Consumption | 1.5-2A typical @ 5V |
+| Power Consumption | 1.6-2.2A typical @ 5V |
 | Baud Rate | 9600 (Serial mode) |
 | Boot Time | <2 seconds |
 
@@ -631,13 +674,15 @@ PD-Periscope/
 - **CRITICAL:** Fixed buffer overflow vulnerability in MainLeds and SideLeds
 - **CRITICAL:** Added virtual destructor to BaseLeds (prevents memory leaks)
 - **CRITICAL:** Fixed static variable issues in multiple LED classes
+- **HARDWARE:** Updated bottom LEDs from 8 to 12 (6 pairs for uniform lighting)
 - Created Constants.h - eliminated 100+ magic numbers
 - Created BaseLeds.cpp - common effect implementations
 - Eliminated ~176 lines of code duplication
 - Added 74+ pointer validation and bounds checks
 - Consolidated 12 member variables into base class
 - Improved code maintainability and extensibility
-- 100% backward compatible - no API changes
+- Added setPair() function for LED pair control in BottomLeds
+- 100% backward compatible API (hardware change only)
 
 ### Version 2.1 (2025/06)
 - Enhanced command format with variable-length effect numbers
