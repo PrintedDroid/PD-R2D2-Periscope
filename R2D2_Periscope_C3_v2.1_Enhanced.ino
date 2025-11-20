@@ -868,64 +868,70 @@ void processSequence(int seq) {
       processCommand("K388");    // Back all on white fast
       break;
 
-    case 31: // White double-flash sequence - Sides, Top/Bottom, Main
-      // Turn off all effects first
+    case 31: // White double-flash sequence - Sides, Top/Bottom, Main (looping)
+      // Turn off all effects and clear all LEDs immediately
       mainLeds.setEffect(0);
       topLeds.setEffect(0);
       bottomLeds.setEffect(0);
       leftLeds.setEffect(0);
       rightLeds.setEffect(0);
       backLeds.setEffect(0);
+      clearLEDs();
+      FastLED.show();
+      delay(300);
 
-      // Sides double flash (50% brightness = 128/255)
-      fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
-      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
-      FastLED.show();
-      delay(100);
-      fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
-      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(100);
-      fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
-      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
-      FastLED.show();
-      delay(100);
-      fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
-      fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(500);
+      // Loop the sequence 3 times
+      for (int i = 0; i < 3; i++) {
+        // Sides double flash (50% brightness = 128/255)
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(left_leds, LEFT_NUMLEDS, CRGB::Black);
+        fill_solid(right_leds, RIGHT_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
 
-      // Top and Bottom double flash (50% brightness = 128/255)
-      fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
-      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
-      FastLED.show();
-      delay(100);
-      fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
-      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(100);
-      fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
-      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
-      FastLED.show();
-      delay(100);
-      fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
-      fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(500);
+        // Top and Bottom double flash (50% brightness = 128/255)
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB(128, 128, 128));
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB(128, 128, 128));
+        FastLED.show();
+        delay(50);
+        fill_solid(top_leds, TOP_NUMLEDS, CRGB::Black);
+        fill_solid(bottom_leds, BOTTOM_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
 
-      // Main double flash (100% brightness)
-      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
-      FastLED.show();
-      delay(100);
-      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(100);
-      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
-      FastLED.show();
-      delay(100);
-      fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
-      FastLED.show();
-      delay(500);
+        // Main double flash (100% brightness)
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
+        FastLED.show();
+        delay(50);
+        fill_solid(main_leds, MAIN_NUMLEDS, CRGB::Black);
+        FastLED.show();
+        delay(300);
+      }
       break;
   }
 }
