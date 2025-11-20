@@ -6,45 +6,23 @@
 class MainLeds: public BaseLeds {
   public:
     MainLeds(CRGB *leds, int numleds);
-    void update(unsigned long currentTime);
-    void setEffect(int effect);
-    void setColor(int color);
-    void setSpeed(int speed);
-  
+    void update(unsigned long currentTime) override;
+    void setEffect(int effect) override;
+
   private:
     void pulseCenter();
-    void pulseAll();
     void cw_run(int pt);
     void cw_split2();
     void cw_split3();
     void cw_split4();
-    void strobe();
     void smoothPulse();
     void theaterChase();
-    void rainbow();
-    void fire();
     void circleChase();
     void centerExpand();
     void spiralOut();
 
-    unsigned long lastUpdate;
-    unsigned long effectChangeTime;
-    CRGB *leds;
-    int numleds;
-    int speed;
-    int idx;
-
-    unsigned long pulse_speed;
-    int pulse;
-    int pulse_offset;
-
-    bool strobe_ind;
-    int currentEffect;
-    int currentColor;
-    bool autoChange;
-    
-    // Fire effect variables
-    byte heat[9];
+    // Fire effect heat array - fixed size with MAX_LEDS_PER_STRIP for safety
+    byte heat[LedConstants::MAX_LEDS_PER_STRIP];
 };
-  
+
 #endif

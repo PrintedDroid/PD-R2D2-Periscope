@@ -2,32 +2,48 @@
 
 SideLeds::SideLeds(CRGB *leds, int numleds)
 {
-  this->lastUpdate = millis();
+  // Initialize base class members
   this->leds = leds;
   this->numleds = numleds;
-  this->speed = 200;
+  this->lastUpdate = millis();
+  this->effectChangeTime = millis();
+  this->speed = LedConstants::DEFAULT_SPEED_SIDE;
   this->idx = 0;
-
-  this->pulse_offset = 10;
+  this->pulse_speed = LedConstants::PULSE_SPEED_DEFAULT;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
   this->strobe_ind = false;
-
   this->currentEffect = 0;
   this->currentColor = 0; // Red
-  this->effect_time = millis();
   this->autoChange = false;
-  
+
   // Initialize fire heat array
-  for(int i = 0; i < this->numleds; i++) {
+  for(int i = 0; i < LedConstants::MAX_LEDS_PER_STRIP; i++) {
     this->heat[i] = 0;
+  }
+
+  // Validation
+  if (!validatePointers()) {
+    #ifdef DEBUG_MODE
+      Serial.println(F("ERROR: SideLeds - Invalid LED pointer"));
+    #endif
+  }
+
+  if (!validateNumLeds()) {
+    #ifdef DEBUG_MODE
+      Serial.print(F("WARNING: SideLeds - NumLEDs out of range: "));
+      Serial.println(numleds);
+    #endif
   }
 }
 
 void SideLeds::setEffect(int effect) {
   this->currentEffect = effect;
   this->idx = 0;
-  this->pulse_offset = 10;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
   this->strobe_ind = false;
-  
+
   if (effect == 99) {
     this->autoChange = true;
     this->currentEffect = 0;
@@ -36,37 +52,30 @@ void SideLeds::setEffect(int effect) {
   }
 }
 
-void SideLeds::setColor(int color) {
-  if (color >= 0 && color <= 9) {
-    this->currentColor = color;
-  }
-}
-
-void SideLeds::setSpeed(int speed) {
-  this->speed = speed;
-}
-
 void SideLeds::update(unsigned long currentTime)
 {
+  if (!validatePointers()) return;
+
   if ((currentTime - this->lastUpdate) < this->speed) return;
 
   // Auto-change mode
-  if (this->autoChange && (currentTime - this->effect_time) > 5000) {
+  if (this->autoChange && (currentTime - this->effectChangeTime) > LedConstants::AUTO_CHANGE_INTERVAL_SIDE) {
     this->currentEffect++;
-    this->speed = 200;
+    this->speed = LedConstants::DEFAULT_SPEED_SIDE;
     this->idx = 0;
-    this->pulse_offset = 10;
+    this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+    this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
     this->strobe_ind = false;
-    this->effect_time = currentTime;
-    
-    if (this->currentEffect >= 8) {
+    this->effectChangeTime = currentTime;
+
+    if (this->currentEffect >= LedConstants::MAX_EFFECT_SIDE) {
       this->currentEffect = 1; // Skip 0 (off) in auto mode
     }
   }
 
   switch(this->currentEffect) {
     case 0: // Off
-      fill_solid(this->leds, this->numleds, CRGB::Black);
+      safeFillSolid(CRGB::Black);
       break;
     case 1: // Pulse
       this->pulse();
@@ -81,120 +90,80 @@ void SideLeds::update(unsigned long currentTime)
       this->cw_run(3);
       break;
     case 5: // Strobe
-      this->strobe();
+      commonStrobe();
       break;
     case 6: // Breathe
       this->breathe();
       break;
     case 7: // Fire
-      this->fire();
+      commonFire(this->heat, LedConstants::MAX_LEDS_PER_STRIP);
       break;
     case 8: // Sparkle
-      this->sparkle();
+      commonSparkle();
       break;
     case 9: // Rainbow
-      this->rainbow();
+      commonRainbow();
       break;
   }
-  
+
   this->lastUpdate = currentTime;
 }
 
 void SideLeds::pulse()
 {
-  // Corrected to pulse the current color, not just white
-  CHSV hsv = rgb2hsv_approximate(colorMap[this->currentColor]);
-  hsv.v = this->idx; // Use idx to control the brightness (Value)
+  if (!validatePointers()) return;
+
+  CHSV hsv = rgb2hsv_approximate(getCurrentColor());
+  hsv.v = this->idx;
 
   for(int i = 0; i < this->numleds; i++) {
     this->leds[i] = hsv;
   }
-  
-  this->idx += this->pulse_offset;
-  if (this->idx >= 255 || this->idx <= 0) {
-    this->pulse_offset = -this->pulse_offset;
-    this->idx += this->pulse_offset; // Ensure it doesn't get stuck at bounds
-  }
-}
 
-void SideLeds::strobe()
-{
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
-  if (this->strobe_ind) {
-    fill_solid(this->leds, this->numleds, colorMap[this->currentColor]);
+  this->idx += this->pulse_offset;
+  if (this->idx >= LedConstants::PULSE_VALUE_MAX || this->idx <= LedConstants::PULSE_VALUE_MIN) {
+    this->pulse_offset = -this->pulse_offset;
+    this->idx += this->pulse_offset;
   }
-  
-  this->strobe_ind = !this->strobe_ind;
 }
 
 void SideLeds::cw_run(int pt)
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
   // Always keep center LED on with current color
-  this->leds[0] = colorMap[this->currentColor];
-  
-  for(int x = 0; x < pt; x++) {
-    int y = (this->idx + x) % 8;
-    // Add 1 to skip center LED (index 0)
-    this->leds[y + 1] = colorMap[this->currentColor];
+  if (isValidIndex(0)) {
+    this->leds[0] = getCurrentColor();
   }
-  
+
+  for(int x = 0; x < pt; x++) {
+    int y = (this->idx + x) % LedConstants::MAIN_LED_CIRCLE_SIZE;
+    // Add 1 to skip center LED (index 0)
+    int ledIndex = y + 1;
+    if (isValidIndex(ledIndex)) {
+      this->leds[ledIndex] = getCurrentColor();
+    }
+  }
+
   this->idx++;
-  if (this->idx >= 8) {
+  if (this->idx >= LedConstants::MAIN_LED_CIRCLE_SIZE) {
     this->idx = 0;
   }
 }
 
 void SideLeds::breathe()
 {
-  uint8_t breath = beatsin8(12, 0, 255);
-  CRGB color = colorMap[this->currentColor];
-  
+  if (!validatePointers()) return;
+
+  uint8_t breath = beatsin8(LedConstants::BEATSIN_FREQUENCY_BREATHE,
+                             LedConstants::PULSE_VALUE_MIN,
+                             LedConstants::PULSE_VALUE_MAX);
+  CRGB color = getCurrentColor();
+
   for(int i = 0; i < this->numleds; i++) {
     this->leds[i] = color;
     this->leds[i].nscale8(breath);
   }
-}
-
-void SideLeds::fire()
-{
-  // Cool down every cell a little
-  for(int i = 0; i < this->numleds; i++) {
-    this->heat[i] = qsub8(this->heat[i], random8(0, ((55 * 10) / this->numleds) + 2));
-  }
-
-  // Heat from each cell drifts up and diffuses slightly
-  for(int k = this->numleds - 1; k >= 2; k--) {
-    this->heat[k] = (this->heat[k - 1] + this->heat[k - 2] + this->heat[k - 2]) / 3;
-  }
-  
-  // Randomly ignite new sparks near bottom
-  if(random8() < 120) {
-    int y = random8(7);
-    this->heat[y] = qadd8(this->heat[y], random8(160, 255));
-  }
-
-  // Map from heat cells to LED colors
-  for(int j = 0; j < this->numleds; j++) {
-    this->leds[j] = HeatColor(this->heat[j]);
-  }
-}
-
-void SideLeds::sparkle()
-{
-  fadeToBlackBy(this->leds, this->numleds, 10);
-  
-  if (random8() < 120) {
-    int pos = random(this->numleds);
-    this->leds[pos] = colorMap[this->currentColor];
-  }
-}
-
-void SideLeds::rainbow()
-{
-  static uint8_t hue = 0;
-  fill_rainbow(this->leds, this->numleds, hue, 255 / this->numleds);
-  hue += map(this->speed, 50, 400, 10, 1);
 }

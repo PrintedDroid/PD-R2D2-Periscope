@@ -2,20 +2,45 @@
 
 BottomLeds::BottomLeds(CRGB *leds, int numleds)
 {
-  this->lastUpdate = millis();
-  this->effectChangeTime = millis();
+  // Initialize base class members
   this->leds = leds;
   this->numleds = numleds;
-  this->speed = 200;
+  this->lastUpdate = millis();
+  this->effectChangeTime = millis();
+  this->speed = LedConstants::DEFAULT_SPEED_BOTTOM;
   this->idx = 0;
+  this->pulse_speed = LedConstants::PULSE_SPEED_DEFAULT;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
   this->currentEffect = 0;
   this->currentColor = 0; // Red
-  this->autoChange = false; // Manual mode by default
+  this->autoChange = false;
+  this->alternateRowsPhase = true;
+
+  // Validation
+  if (!validatePointers()) {
+    #ifdef DEBUG_MODE
+      Serial.println(F("ERROR: BottomLeds - Invalid LED pointer"));
+    #endif
+  }
+
+  if (!validateNumLeds()) {
+    #ifdef DEBUG_MODE
+      Serial.print(F("WARNING: BottomLeds - NumLEDs out of range: "));
+      Serial.println(numleds);
+    #endif
+  }
 }
 
 void BottomLeds::setEffect(int effect) {
   this->currentEffect = effect;
-  this->idx = 0; // Reset index when changing effects
+  this->idx = 0;
+  this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
+  this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
+  this->strobe_ind = false;
+  this->alternateRowsPhase = true;
+
   if (effect == 99) {
     this->autoChange = true;
     this->currentEffect = 0;
@@ -24,34 +49,27 @@ void BottomLeds::setEffect(int effect) {
   }
 }
 
-void BottomLeds::setColor(int color) {
-  if (color >= 0 && color <= 9) {
-    this->currentColor = color;
-  }
-}
-
-void BottomLeds::setSpeed(int speed) {
-  this->speed = speed;
-}
-
 void BottomLeds::update(unsigned long currentTime)
 {
+  if (!validatePointers()) return;
+
   if ((currentTime - this->lastUpdate) < this->speed) return;
 
   // Auto-change mode
-  if (this->autoChange && (currentTime - this->effectChangeTime) > 10000) {
+  if (this->autoChange && (currentTime - this->effectChangeTime) > LedConstants::AUTO_CHANGE_INTERVAL_MAIN) {
     this->currentEffect++;
     this->idx = 0;
+    this->alternateRowsPhase = true;
     this->effectChangeTime = currentTime;
-    
-    if (this->currentEffect >= 10) {
+
+    if (this->currentEffect >= LedConstants::MAX_EFFECT_BOTTOM) {
       this->currentEffect = 1; // Skip 0 (off) in auto mode
     }
   }
 
   switch (this->currentEffect) {
     case 0: // Off
-      fill_solid(this->leds, this->numleds, CRGB::Black);
+      safeFillSolid(CRGB::Black);
       break;
     case 1: // Superscan
       this->superscan();
@@ -81,18 +99,20 @@ void BottomLeds::update(unsigned long currentTime)
       this->snake();
       break;
   }
-  
+
   this->lastUpdate = currentTime;
 }
 
 void BottomLeds::simple()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
-  if (this->idx < this->numleds) {
-    this->leds[this->idx] = colorMap[this->currentColor];
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
+  if (isValidIndex(this->idx)) {
+    this->leds[this->idx] = getCurrentColor();
   }
-  
+
   this->idx++;
   if (this->idx >= this->numleds) {
     this->idx = 0;
@@ -101,15 +121,17 @@ void BottomLeds::simple()
 
 void BottomLeds::scan()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
+  if (!validatePointers()) return;
 
-  if (this->idx < this->numleds - 1) {
-    this->leds[this->idx] = colorMap[this->currentColor];
-    this->leds[this->idx + 1] = colorMap[this->currentColor];
+  safeFillSolid(CRGB::Black);
+
+  if (isValidIndex(this->idx) && isValidIndex(this->idx + 1)) {
+    this->leds[this->idx] = getCurrentColor();
+    this->leds[this->idx + 1] = getCurrentColor();
   }
 
   this->idx += 2;
-  
+
   if (this->idx >= this->numleds) {
     this->idx = 0;
   }
@@ -117,72 +139,86 @@ void BottomLeds::scan()
 
 void BottomLeds::superscan()
 {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  CRGB color = colorMap[this->currentColor];
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+  CRGB color = getCurrentColor();
 
   switch (this->idx) {
     case 0:
-      this->leds[0] = color;
-      this->leds[1] = color;
-      this->leds[6] = color;
-      this->leds[7] = color;
+      if (isValidIndex(0)) this->leds[0] = color;
+      if (isValidIndex(1)) this->leds[1] = color;
+      if (isValidIndex(LedConstants::INDEX_SIX)) this->leds[LedConstants::INDEX_SIX] = color;
+      if (isValidIndex(7)) this->leds[7] = color;
       break;
     case 1:
-      this->leds[2] = color;
-      this->leds[3] = color;
-      this->leds[4] = color;
-      this->leds[5] = color;
+      if (isValidIndex(LedConstants::INDEX_TWO)) this->leds[LedConstants::INDEX_TWO] = color;
+      if (isValidIndex(LedConstants::INDEX_THREE)) this->leds[LedConstants::INDEX_THREE] = color;
+      if (isValidIndex(LedConstants::INDEX_FOUR)) this->leds[LedConstants::INDEX_FOUR] = color;
+      if (isValidIndex(5)) this->leds[5] = color;
       break;
     case 2:
-      this->leds[3] = color;
-      this->leds[5] = color;
+      if (isValidIndex(LedConstants::INDEX_THREE)) this->leds[LedConstants::INDEX_THREE] = color;
+      if (isValidIndex(5)) this->leds[5] = color;
       break;
     case 3:
-      this->leds[2] = color;
-      this->leds[4] = color;
+      if (isValidIndex(LedConstants::INDEX_TWO)) this->leds[LedConstants::INDEX_TWO] = color;
+      if (isValidIndex(LedConstants::INDEX_FOUR)) this->leds[LedConstants::INDEX_FOUR] = color;
       break;
     case 4:
-      this->leds[3] = color;
-      this->leds[5] = color;
+      if (isValidIndex(LedConstants::INDEX_THREE)) this->leds[LedConstants::INDEX_THREE] = color;
+      if (isValidIndex(5)) this->leds[5] = color;
       break;
     case 5:
-      this->leds[2] = color;
-      this->leds[3] = color;
-      this->leds[4] = color;
-      this->leds[5] = color;
+      if (isValidIndex(LedConstants::INDEX_TWO)) this->leds[LedConstants::INDEX_TWO] = color;
+      if (isValidIndex(LedConstants::INDEX_THREE)) this->leds[LedConstants::INDEX_THREE] = color;
+      if (isValidIndex(LedConstants::INDEX_FOUR)) this->leds[LedConstants::INDEX_FOUR] = color;
+      if (isValidIndex(5)) this->leds[5] = color;
       break;
   }
 
   this->idx++;
-  if (this->idx >= 6) {
+  if (this->idx >= LedConstants::INDEX_SIX) {
     this->idx = 0;
   }
 }
 
 void BottomLeds::randomLight() {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
   int ledIndex = random(this->numleds);
-  this->leds[ledIndex] = colorMap[this->currentColor];
+  if (isValidIndex(ledIndex)) {
+    this->leds[ledIndex] = getCurrentColor();
+  }
 }
 
 void BottomLeds::chase() {
-  fadeToBlackBy(this->leds, this->numleds, 20);
-  
-  int pos = beatsin16(13, 0, this->numleds - 1);
-  this->leds[pos] = colorMap[this->currentColor];
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::FADE_AMOUNT_STANDARD);
+
+  int pos = beatsin16(LedConstants::BEATSIN_FREQUENCY_BREATHE, 0, this->numleds - 1);
+  if (isValidIndex(pos)) {
+    this->leds[pos] = getCurrentColor();
+  }
 }
 
 void BottomLeds::comet() {
-  fadeToBlackBy(this->leds, this->numleds, 20);
-  
-  this->leds[this->idx] = colorMap[this->currentColor];
-  
-  // Add trail
-  if (this->idx > 0) {
-    this->leds[this->idx - 1] = colorMap[this->currentColor];
-    this->leds[this->idx - 1].fadeToBlackBy(128);
+  if (!validatePointers()) return;
+
+  fadeToBlackBy(this->leds, this->numleds, LedConstants::FADE_AMOUNT_STANDARD);
+
+  if (isValidIndex(this->idx)) {
+    this->leds[this->idx] = getCurrentColor();
+
+    // Add trail
+    if (isValidIndex(this->idx - 1)) {
+      this->leds[this->idx - 1] = getCurrentColor();
+      this->leds[this->idx - 1].fadeToBlackBy(LedConstants::FADE_MULTIPLIER_THEATER);
+    }
   }
-  
+
   this->idx++;
   if (this->idx >= this->numleds) {
     this->idx = 0;
@@ -190,71 +226,79 @@ void BottomLeds::comet() {
 }
 
 void BottomLeds::wave() {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
   // Wave effect for 2x4 arrangement
   switch(this->idx) {
     case 0: // Left column
-      this->leds[0] = colorMap[this->currentColor];
-      this->leds[7] = colorMap[this->currentColor];
+      if (isValidIndex(0)) this->leds[0] = getCurrentColor();
+      if (isValidIndex(7)) this->leds[7] = getCurrentColor();
       break;
     case 1:
-      this->leds[1] = colorMap[this->currentColor];
-      this->leds[6] = colorMap[this->currentColor];
+      if (isValidIndex(1)) this->leds[1] = getCurrentColor();
+      if (isValidIndex(LedConstants::INDEX_SIX)) this->leds[LedConstants::INDEX_SIX] = getCurrentColor();
       break;
     case 2:
-      this->leds[2] = colorMap[this->currentColor];
-      this->leds[5] = colorMap[this->currentColor];
+      if (isValidIndex(LedConstants::INDEX_TWO)) this->leds[LedConstants::INDEX_TWO] = getCurrentColor();
+      if (isValidIndex(5)) this->leds[5] = getCurrentColor();
       break;
     case 3: // Right column
-      this->leds[3] = colorMap[this->currentColor];
-      this->leds[4] = colorMap[this->currentColor];
+      if (isValidIndex(LedConstants::INDEX_THREE)) this->leds[LedConstants::INDEX_THREE] = getCurrentColor();
+      if (isValidIndex(LedConstants::INDEX_FOUR)) this->leds[LedConstants::INDEX_FOUR] = getCurrentColor();
       break;
   }
-  
+
   this->idx++;
-  if (this->idx >= 4) {
+  if (this->idx >= LedConstants::WAVE_MAX_INDEX) {
     this->idx = 0;
   }
 }
 
 void BottomLeds::alternateRows() {
-  static bool topRow = true;
-  
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
-  if (topRow) {
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
+  if (this->alternateRowsPhase) {
     // Top row on
     for(int i = 0; i < 4; i++) {
-      this->leds[i] = colorMap[this->currentColor];
+      if (isValidIndex(i)) {
+        this->leds[i] = getCurrentColor();
+      }
     }
   } else {
     // Bottom row on
     for(int i = 4; i < 8; i++) {
-      this->leds[i] = colorMap[this->currentColor];
+      if (isValidIndex(i)) {
+        this->leds[i] = getCurrentColor();
+      }
     }
   }
-  
-  topRow = !topRow;
+
+  this->alternateRowsPhase = !this->alternateRowsPhase;
 }
 
 void BottomLeds::snake() {
-  fill_solid(this->leds, this->numleds, CRGB::Black);
-  
+  if (!validatePointers()) return;
+
+  safeFillSolid(CRGB::Black);
+
   // Snake pattern through 2x4 grid
   // Path: 0->1->2->3->4->5->6->7->0
-  int snakeLength = 3;
-  
-  for(int i = 0; i < snakeLength; i++) {
+  for(int i = 0; i < LedConstants::SNAKE_LENGTH; i++) {
     int pos = (this->idx - i + this->numleds) % this->numleds;
-    this->leds[pos] = colorMap[this->currentColor];
-    
-    // Fade tail
-    if (i > 0) {
-      this->leds[pos].fadeToBlackBy(i * 80);
+    if (isValidIndex(pos)) {
+      this->leds[pos] = getCurrentColor();
+
+      // Fade tail
+      if (i > 0) {
+        this->leds[pos].fadeToBlackBy(i * LedConstants::FADE_AMOUNT_VERY_HEAVY);
+      }
     }
   }
-  
+
   this->idx++;
   if (this->idx >= this->numleds) {
     this->idx = 0;
