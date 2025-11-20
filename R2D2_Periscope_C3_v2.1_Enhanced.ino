@@ -401,6 +401,8 @@ void processCommand(String cmd) {
     leftLeds.setEffect(0);
     rightLeds.setEffect(0);
     backLeds.setEffect(0);
+    clearLEDs();
+    FastLED.show();
     Serial.println("Set All to OFF");
     return;
   }
