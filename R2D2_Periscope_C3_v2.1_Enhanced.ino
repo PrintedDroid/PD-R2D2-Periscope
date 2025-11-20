@@ -483,8 +483,8 @@ void processSequence(int seq) {
     case 0: // Original R2D2 startup
       processCommand("M185");   // Main pulse white medium
       processCommand("T185");   // Top left run white medium
-      processCommand("S185");   // Sides pulse white medium
-      processCommand("B105");   // Bottom superscan red medium (ORIGINAL Effect 1)
+      processCommand("S285");   // Sides CW run 1 white medium
+      processCommand("B105");   // Bottom superscan red medium
       processCommand("K105");   // Back random red/blue medium
       break;
     case 1: // Party mode
