@@ -111,6 +111,7 @@
 
 #include <FastLED.h>
 #include <Wire.h>
+#include "Config.h"
 #include "BottomLeds.h"
 #include "MainLeds.h"
 #include "SideLeds.h"
@@ -119,6 +120,9 @@
 
 // I2C Configuration
 #define I2C_ADDRESS 0x20  // I2C address (32 decimal, 0x20 hex)
+
+// Configuration Manager
+ConfigManager configManager;
 
 #define BRIGHTNESS 80   // 0-255, higher number is brighter. 
 #define COLOR_ORDER GRB
@@ -213,9 +217,14 @@ void setup() {
   
 #ifndef UPPITY_SPINNER_MODE
   Serial.begin(9600);
-  Serial.println("Starting Enhanced R2D2 Periscope - Serial Mode (Final Correction)");
+  Serial.println("Starting Enhanced R2D2 Periscope v2.2 - Serial Mode");
   Serial.println("Commands: [Target][Effect][Color][Speed]");
   Serial.println("Example: M1285 = Main LEDs, Effect 12, White, Speed 5");
+  Serial.println("Type 'HELP' for command list, 'CONFIG' for configuration");
+
+  // Initialize configuration system
+  configManager.begin();
+  Serial.println();
 
   // Debug: Show hardware configuration
   Serial.print("Bottom LEDs: ");
@@ -231,6 +240,7 @@ void setup() {
   Wire.onReceive(i2cEvent);
   Serial.print("I2C initialized at address 0x");
   Serial.println(I2C_ADDRESS, HEX);
+  Serial.println();
 #else
   // Configure Uppity Spinner pins
   pinMode(UPPITY_PIN_A, INPUT_PULLUP);
@@ -247,8 +257,16 @@ void setup() {
   FastLED.addLeds<WS2812, BOTTOM_PIN, COLOR_ORDER>(bottom_leds, BOTTOM_NUMLEDS).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<WS2812, TOP_PIN, COLOR_ORDER>(top_leds, TOP_NUMLEDS).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<WS2812, BACK_PIN, COLOR_ORDER>(back_leds, BACK_NUMLEDS).setCorrection(TypicalLEDStrip);
+
+#ifndef UPPITY_SPINNER_MODE
+  // Set brightness from config
+  FastLED.setBrightness(configManager.getBrightness());
+  Serial.print("Brightness set to: ");
+  Serial.println(configManager.getBrightness());
+#else
   FastLED.setBrightness(BRIGHTNESS);
-  
+#endif
+
 #ifdef UPPITY_SPINNER_MODE
   // Visual indication of Uppity Spinner mode - quick white flash
   fill_solid(main_leds, MAIN_NUMLEDS, CRGB::White);
@@ -259,8 +277,14 @@ void setup() {
   FastLED.show();
   delay(200);
 #else
-  // Start with original R2D2 sequence in Serial mode
-  processSequence(0);
+  // Start with configured startup sequence in Serial mode
+  if (configManager.getAutoStart() && configManager.getStartupSequence() >= 0) {
+    Serial.print("Running startup sequence: Q");
+    Serial.println(configManager.getStartupSequence());
+    processSequence(configManager.getStartupSequence());
+  } else {
+    Serial.println("Auto-start disabled or no startup sequence set");
+  }
 #endif
 }
 
@@ -298,8 +322,32 @@ void loop() {
       int seqNum = commandString.substring(1).toInt();
       processSequence(seqNum);
     }
-    else if (commandString == "?") {
+    else if (commandString.startsWith("S") && commandString.length() >= 2 && isDigit(commandString.charAt(1))) {
+      // Custom sequence (S1-S10)
+      int slot = commandString.substring(1).toInt();
+      CustomSequence* seq = configManager.getSequence(slot);
+      if (seq) {
+        Serial.print("Running custom sequence: ");
+        Serial.println(seq->name);
+        for (int i = 0; i < seq->commandCount; i++) {
+          processCommand(String(seq->commands[i]));
+          if (seq->delays[i] > 0) {
+            delay(seq->delays[i]);
+          }
+        }
+      } else {
+        Serial.print("ERROR: Sequence S");
+        Serial.print(slot);
+        Serial.println(" not found");
+      }
+    }
+    else if (commandString == "?" || commandString == "HELP") {
       printStatus();
+    }
+    else if (commandString == "CONFIG" || commandString.startsWith("SET ") ||
+             commandString.startsWith("SEQ ") || commandString == "SAVE" ||
+             commandString == "RESET") {
+      configManager.processConfigCommand(commandString);
     }
     else {
       processCommand(commandString);
@@ -397,17 +445,41 @@ void checkSerial() {
 }
 
 void printStatus() {
-  Serial.println(F("\n=== LED Status ==="));
+  Serial.println(F("\n=== R2D2 Periscope Help ==="));
   Serial.print(F("System: "));
   Serial.println(activated ? "ON" : "OFF");
-  Serial.println(F("Use '?' for status, 'ON'/'OFF' to control."));
-  Serial.println(F("Commands: [Target][Effect][Color][Speed]"));
-  Serial.println(F("Targets: M, T, B, S, L, R, K, A, X"));
-  Serial.println(F("Effects: 0-16+ (e.g., 99 for Auto)"));
-  Serial.println(F("Colors: 0-9"));
-  Serial.println(F("Speed: 0-9"));
-  Serial.println(F("Sequences: Q0-Q20 (e.g., Q4=Police, Q6=Knight Rider)"));
-  Serial.println(F("==================\n"));
+
+  Serial.println(F("\n--- LED Commands ---"));
+  Serial.println(F("Format: [Target][Effect][Color][Speed]"));
+  Serial.println(F("  Targets: M, T, B, S, L, R, K, A, X"));
+  Serial.println(F("  Effects: 0-16+ (99=Auto)"));
+  Serial.println(F("  Colors: 0=Red 1=Yel 2=Grn 3=Cyan 4=Blue"));
+  Serial.println(F("          5=Mag 6=Org 7=Pur 8=Wht 9=Pink"));
+  Serial.println(F("  Speed: 0=Slow ... 9=Fast"));
+  Serial.println(F("Examples: M185, T385, B105, S485, X"));
+
+  Serial.println(F("\n--- Sequences ---"));
+  Serial.println(F("  Q0-Q20 - Built-in sequences"));
+  Serial.println(F("  S1-S10 - Custom sequences"));
+  Serial.println(F("  SEQ LIST - Show custom sequences"));
+
+  Serial.println(F("\n--- Configuration ---"));
+  Serial.println(F("  CONFIG - Show settings"));
+  Serial.println(F("  SET LEDS <8|12> - Bottom LED count"));
+  Serial.println(F("  SET STARTUP Q<n> - Startup sequence"));
+  Serial.println(F("  SET BRIGHTNESS <0-255>"));
+  Serial.println(F("  SAVE - Save to flash"));
+
+  Serial.println(F("\n--- Custom Sequences ---"));
+  Serial.println(F("  SEQ NEW S<n> <name>"));
+  Serial.println(F("  SEQ ADD S<n> <cmd> [DELAY <ms>]"));
+  Serial.println(F("  SEQ SAVE S<n>"));
+  Serial.println(F("  SEQ DEL S<n>"));
+
+  Serial.println(F("\n--- Other ---"));
+  Serial.println(F("  ON/OFF - Enable/disable system"));
+  Serial.println(F("  HELP or ? - This help"));
+  Serial.println(F("=============================\n"));
 }
 
 void i2cEvent(int howMany) {

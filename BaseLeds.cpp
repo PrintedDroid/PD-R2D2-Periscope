@@ -107,6 +107,88 @@ void BaseLeds::commonPulseAll() {
   }
 }
 
+void BaseLeds::commonTwinkle() {
+  if (!validatePointers()) return;
+
+  // Randomly fade all LEDs
+  for(int i = 0; i < this->numleds; i++) {
+    this->leds[i].fadeToBlackBy(random8(5, 20));
+  }
+
+  // Randomly light new ones (probability based on speed)
+  uint8_t probability = map(this->speed, 20, 400, 200, 50); // Higher speed = more twinkles
+  if(random8() < probability) {
+    int pos = random8(this->numleds);
+    if (isValidIndex(pos)) {
+      this->leds[pos] = getCurrentColor();
+      this->leds[pos].maximizeBrightness();
+    }
+  }
+}
+
+void BaseLeds::commonTheaterChase() {
+  if (!validatePointers()) return;
+
+  // Clear all
+  safeFillSolid(CRGB::Black);
+
+  // Light every 3rd LED based on current position
+  for(int i = 0; i < this->numleds; i += 3) {
+    int ledIndex = i + this->theater_chase_q;
+    if (isValidIndex(ledIndex)) {
+      this->leds[ledIndex] = getCurrentColor();
+    }
+  }
+
+  // Cycle through 0, 1, 2 positions
+  this->theater_chase_q++;
+  if (this->theater_chase_q >= 3) {
+    this->theater_chase_q = 0;
+  }
+}
+
+void BaseLeds::commonBounceWithTrail() {
+  if (!validatePointers()) return;
+
+  // Fade all LEDs for trail effect
+  fadeToBlackBy(this->leds, this->numleds, 40);
+
+  // Calculate bounce position using beatsin
+  uint8_t bpm = map(this->speed, 20, 400, 10, 60);
+  int pos = beatsin16(bpm, 0, this->numleds - 1);
+
+  // Set current position
+  if (isValidIndex(pos)) {
+    this->leds[pos] = getCurrentColor();
+  }
+
+  // Add blur for smoother trail
+  blur1d(this->leds, this->numleds, 128);
+}
+
+void BaseLeds::commonColorGradient() {
+  if (!validatePointers()) return;
+
+  // Create gradient from current color to its complement
+  CRGB color1 = getCurrentColor();
+  CHSV hsv = rgb2hsv_approximate(color1);
+
+  // Opposite hue for complement color
+  hsv.hue += 128;
+  CRGB color2 = hsv;
+
+  // Fill with gradient
+  fill_gradient_RGB(this->leds, 0, color1, this->numleds - 1, color2);
+
+  // Rotate hue over time for animation
+  EVERY_N_MILLISECONDS(50) {
+    for(int i = 0; i < this->numleds; i++) {
+      this->leds[i] += CHSV(this->idx, 0, 0);
+    }
+    this->idx++;
+  }
+}
+
 // ============================================
 // Utility Methods
 // ============================================

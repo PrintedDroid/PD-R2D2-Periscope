@@ -38,6 +38,10 @@ class BaseLeds {
     void commonSparkle(uint8_t threshold = LedConstants::STROBE_THRESHOLD_SPARKLE);
     void commonStrobe();
     void commonPulseAll();
+    void commonTwinkle();
+    void commonTheaterChase();
+    void commonBounceWithTrail();
+    void commonColorGradient();
 
     // Utility methods
     bool isValidIndex(int index) const;
@@ -66,6 +70,9 @@ class BaseLeds {
 
     // Strobe effect variable
     bool strobe_ind;
+
+    // Theater chase effect variable
+    int theater_chase_q;
 };
 
 #endif
