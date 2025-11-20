@@ -880,8 +880,8 @@ void processSequence(int seq) {
       FastLED.show();
       delay(300);
 
-      // Loop the sequence 3 times
-      for (int i = 0; i < 3; i++) {
+      // Loop the sequence 2 times
+      for (int i = 0; i < 2; i++) {
         // Sides double flash (50% brightness = 128/255)
         fill_solid(left_leds, LEFT_NUMLEDS, CRGB(128, 128, 128));
         fill_solid(right_leds, RIGHT_NUMLEDS, CRGB(128, 128, 128));
