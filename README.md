@@ -1,4 +1,4 @@
-# R2-D2 Periscope LED Controller v2.1
+# R2-D2 Periscope LED Controller v2.2
 **Advanced ESP32-C3 based LED controller for Star Wars R2-D2 Periscope builds**
 
 ## 🤖 Project Overview
@@ -612,17 +612,32 @@ Then add case to `update()` switch statement.
 
 ```
 PD-Periscope/
-├── R2D2_Periscope_C3_v2.1_Enhanced.ino  # Main sketch
-├── BaseLeds.h                            # Base LED class + color palette
+├── R2D2_Periscope_C3_v2.1_Enhanced.ino  # Main sketch (v2.2)
+├── Constants.h                           # Centralized constants (NEW v2.2)
+├── BaseLeds.h / .cpp                     # Base class + common effects (v2.2)
 ├── MainLeds.h / .cpp                     # Main LED ring (9 LEDs)
 ├── TopLeds.h / .cpp                      # Top LEDs (7 LEDs)
 ├── BottomLeds.h / .cpp                   # Bottom LEDs (8 LEDs)
 ├── SideLeds.h / .cpp                     # Left/Right LEDs (9 each)
 ├── BackLeds.h / .cpp                     # Back LEDs (3 LEDs)
+├── REFACTORING_SUMMARY.md                # Refactoring documentation (v2.2)
 └── README.md                             # This file
 ```
 
 ## 📝 Version History
+
+### Version 2.2 (2025/11)
+**Major Code Refactoring - Quality & Safety Improvements**
+- **CRITICAL:** Fixed buffer overflow vulnerability in MainLeds and SideLeds
+- **CRITICAL:** Added virtual destructor to BaseLeds (prevents memory leaks)
+- **CRITICAL:** Fixed static variable issues in multiple LED classes
+- Created Constants.h - eliminated 100+ magic numbers
+- Created BaseLeds.cpp - common effect implementations
+- Eliminated ~176 lines of code duplication
+- Added 74+ pointer validation and bounds checks
+- Consolidated 12 member variables into base class
+- Improved code maintainability and extensibility
+- 100% backward compatible - no API changes
 
 ### Version 2.1 (2025/06)
 - Enhanced command format with variable-length effect numbers
@@ -681,8 +696,8 @@ Q20     # Test auto-demo mode
 ### Project Credits
 - **Hardware Design**: Printed-Droid.com
 - **Software Development**: Printed-Droid.com
-- **Version**: 2.1
-- **Date**: 2025/06
+- **Version**: 2.2
+- **Date**: 2025/11
 
 ### Open Source Libraries
 - **FastLED**: High-performance LED control library
