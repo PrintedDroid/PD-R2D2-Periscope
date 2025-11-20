@@ -171,6 +171,10 @@ CRGB bottom_leds[BOTTOM_NUMLEDS];
 CRGB top_leds[TOP_NUMLEDS];
 CRGB back_leds[BACK_NUMLEDS];
 
+// Global color map (20 slots: 0-9 defaults, 10-19 custom)
+// Initialized by ConfigManager
+CRGB colorMap[MAX_COLOR_SLOTS];
+
 // LED objects
 TopLeds    topLeds(top_leds, TOP_NUMLEDS);
 BottomLeds bottomLeds(bottom_leds, BOTTOM_NUMLEDS);
@@ -345,7 +349,8 @@ void loop() {
       printStatus();
     }
     else if (commandString == "CONFIG" || commandString.startsWith("SET ") ||
-             commandString.startsWith("SEQ ") || commandString == "SAVE" ||
+             commandString.startsWith("SEQ ") || commandString.startsWith("COLOR") ||
+             commandString == "COLORS" || commandString == "SAVE" ||
              commandString == "RESET") {
       configManager.processConfigCommand(commandString);
     }
@@ -480,6 +485,14 @@ void printStatus() {
   Serial.println(F("  SEQ ADD S<n> <cmd> [DELAY <ms>]"));
   Serial.println(F("  SEQ SAVE S<n>"));
   Serial.println(F("  SEQ DEL S<n>"));
+
+  Serial.println(F("\n--- Custom Colors ---"));
+  Serial.println(F("  COLOR LIST - Show all colors (0-19)"));
+  Serial.println(F("  COLOR RGB <slot> <r> <g> <b> [name]"));
+  Serial.println(F("  COLOR HSV <slot> <h> <s> <v> [name]"));
+  Serial.println(F("  COLOR RESET <slot> - Reset one color"));
+  Serial.println(F("  COLOR RESET ALL - Reset all colors"));
+  Serial.println(F("  Slots: 0-9=Default, 10-19=Custom"));
 
   Serial.println(F("\n--- Other ---"));
   Serial.println(F("  ON/OFF - Enable/disable system"));
