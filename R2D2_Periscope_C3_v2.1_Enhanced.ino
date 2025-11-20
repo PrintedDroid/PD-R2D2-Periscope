@@ -1,8 +1,18 @@
 //
-// R2D2 Periscope LED Controller for ESP32-C3 - Enhanced Version with Uppity Spinner Support
-// =========================================================================================
+// R2D2 Periscope LED Controller for ESP32-C3 - Enhanced Version v2.2
+// ====================================================================
 // Sketch for the Printed-Droid.com Periscope
 // Board: Lolin C3 Mini (ESP32-C3)
+//
+// VERSION 2.2 IMPROVEMENTS (2025/11):
+// - CRITICAL: Fixed buffer overflow in MainLeds/SideLeds
+// - CRITICAL: Added virtual destructor to BaseLeds
+// - CRITICAL: Fixed static variable issues
+// - Created Constants.h with 90+ named constants
+// - Created BaseLeds.cpp with common effects
+// - Eliminated 100+ magic numbers and ~176 lines of duplication
+// - Added 74+ safety checks and validation
+// - 100% backward compatible
 //
 // UPPITY SPINNER MODE:
 // ====================
@@ -67,8 +77,8 @@
 // - "ON": Enable all LEDs
 // - "OFF": Disable all LEDs
 //
-// Version: 2.1
-// Date: 2025/06
+// Version: 2.2
+// Date: 2025/11
 // Author: Printed-Droid.com
 //
 
