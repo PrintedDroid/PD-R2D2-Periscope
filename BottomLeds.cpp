@@ -13,6 +13,7 @@ BottomLeds::BottomLeds(CRGB *leds, int numleds)
   this->pulse = LedConstants::PULSE_VALUE_DEFAULT;
   this->pulse_offset = LedConstants::PULSE_OFFSET_DEFAULT;
   this->strobe_ind = false;
+  this->theater_chase_q = 0;
   this->currentEffect = 0;
   this->currentColor = 0; // Red
   this->autoChange = false;
@@ -158,6 +159,18 @@ void BottomLeds::update(unsigned long currentTime)
       break;
     case 9: // Snake
       this->snake();
+      break;
+    case 10: // Twinkle
+      commonTwinkle();
+      break;
+    case 11: // Theater Chase (common)
+      commonTheaterChase();
+      break;
+    case 12: // Bounce with Trail
+      commonBounceWithTrail();
+      break;
+    case 13: // Color Gradient
+      commonColorGradient();
       break;
   }
 
