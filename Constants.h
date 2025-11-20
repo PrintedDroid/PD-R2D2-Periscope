@@ -21,8 +21,8 @@ namespace LedConstants {
     constexpr uint16_t PULSE_SPEED_DEFAULT = 20;
     constexpr uint16_t PULSE_SPEED_MINIMUM = 10;
     constexpr uint8_t PULSE_VALUE_DEFAULT = 50;
-    constexpr int8_t PULSE_OFFSET_DEFAULT = 1;
-    constexpr uint8_t PULSE_VALUE_MIN = 50;
+    constexpr int8_t PULSE_OFFSET_DEFAULT = 10;  // Original value: 10 for visible pulsing
+    constexpr uint8_t PULSE_VALUE_MIN = 0;       // Original value: 0 (was incorrectly set to 50)
     constexpr uint8_t PULSE_VALUE_MAX = 255;
 
     // Fire effect parameters
