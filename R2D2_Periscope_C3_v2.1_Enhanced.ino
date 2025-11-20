@@ -44,7 +44,7 @@
 // 4. Choose version between 3.9.0 and 3.9.10
 // 5. Click "Install"
 //
-// Enhanced Command Format (Serial Mode Only):
+// Enhanced Command Format (Serial & I2C Mode):
 // ===========================================
 // Format: [Target][Effect][Color][Speed]
 // Example: M185 = Main LEDs, Effect 1, White, Speed 5
@@ -77,6 +77,15 @@
 // - "ON": Enable all LEDs
 // - "OFF": Disable all LEDs
 //
+// I2C Communication (Serial Mode Only):
+// =====================================
+// - I2C Address: 0x20 (32 decimal)
+// - SDA Pin: GPIO8
+// - SCL Pin: GPIO9
+// - Same command format as Serial
+// - Example: Master sends "M185" -> Main LEDs pulse white medium
+// - Note: I2C disabled in Uppity Spinner Mode (pins used for spinner)
+//
 // Version: 2.2
 // Date: 2025/11
 // Author: Printed-Droid.com
@@ -101,11 +110,15 @@
 #define UPPITY_STATE_7_SEQUENCE 6   // Knight Rider
 
 #include <FastLED.h>
+#include <Wire.h>
 #include "BottomLeds.h"
 #include "MainLeds.h"
 #include "SideLeds.h"
 #include "BackLeds.h"
 #include "TopLeds.h"
+
+// I2C Configuration
+#define I2C_ADDRESS 0x20  // I2C address (32 decimal, 0x20 hex)
 
 #define BRIGHTNESS 80   // 0-255, higher number is brighter. 
 #define COLOR_ORDER GRB
@@ -190,6 +203,9 @@ bool inDemoMode = false;
 void processCommand(String cmd);
 void processSequence(int seq);
 void clearLEDs();
+#ifndef UPPITY_SPINNER_MODE
+void i2cEvent(int howMany);
+#endif
 
 void setup() {
   // Setup status LED
@@ -209,6 +225,12 @@ void setup() {
   #else
     Serial.println(" (V1 - 8 individual LEDs)");
   #endif
+
+  // Initialize I2C as slave
+  Wire.begin(SDA_PIN, SCL_PIN, I2C_ADDRESS);
+  Wire.onReceive(i2cEvent);
+  Serial.print("I2C initialized at address 0x");
+  Serial.println(I2C_ADDRESS, HEX);
 #else
   // Configure Uppity Spinner pins
   pinMode(UPPITY_PIN_A, INPUT_PULLUP);
@@ -386,6 +408,30 @@ void printStatus() {
   Serial.println(F("Speed: 0-9"));
   Serial.println(F("Sequences: Q0-Q20 (e.g., Q4=Police, Q6=Knight Rider)"));
   Serial.println(F("==================\n"));
+}
+
+void i2cEvent(int howMany) {
+  // Read I2C data into command buffer
+  commandString = "";
+  int i = 0;
+
+  while (Wire.available()) {
+    char inChar = (char)Wire.read();
+    if (i < MAX_COMMAND_LENGTH - 1) {
+      commandString += inChar;
+    }
+    i++;
+  }
+
+  // Set flag to process command in main loop
+  if (commandString.length() > 0) {
+    commandComplete = true;
+
+    #ifdef DEBUG_I2C
+    Serial.print(F("I2C Received: "));
+    Serial.println(commandString);
+    #endif
+  }
 }
 #endif
 
